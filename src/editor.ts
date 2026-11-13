@@ -39,7 +39,7 @@ export class ExcalidrawEditorProvider
           type: "excalidrawlib",
           version: 2,
           source:
-            "https://marketplace.visualstudio.com/items?itemName=pomdtr.excalidraw-editor",
+            "https://marketplace.visualstudio.com/items?itemName=your-publisher-id.excalidraw-studio",
           libraryItems,
         })
       )
@@ -48,7 +48,7 @@ export class ExcalidrawEditorProvider
       });
   }
 
-  private static readonly viewType = "editor.excalidraw";
+  private static readonly viewType = "excalidrawStudio.editor";
 
   constructor(private readonly context: vscode.ExtensionContext) {}
 
@@ -185,7 +185,9 @@ export class ExcalidrawEditor {
 
     const onDidChangeThemeConfiguration =
       vscode.workspace.onDidChangeConfiguration((e) => {
-        if (!e.affectsConfiguration("excalidraw.theme", this.document.uri)) {
+        if (
+          !e.affectsConfiguration("excalidrawStudio.theme", this.document.uri)
+        ) {
           return;
         }
         this.webview.postMessage({
@@ -195,7 +197,9 @@ export class ExcalidrawEditor {
       }, this);
 
     vscode.workspace.onDidChangeConfiguration((e) => {
-      if (!e.affectsConfiguration("excalidraw.language", this.document.uri)) {
+      if (
+        !e.affectsConfiguration("excalidrawStudio.language", this.document.uri)
+      ) {
         return;
       }
       this.webview.postMessage({
@@ -206,7 +210,9 @@ export class ExcalidrawEditor {
 
     const onDidChangeEmbedConfiguration =
       vscode.workspace.onDidChangeConfiguration((e) => {
-        if (!e.affectsConfiguration("excalidraw.image", this.document.uri)) {
+        if (
+          !e.affectsConfiguration("excalidrawStudio.image", this.document.uri)
+        ) {
           return;
         }
         this.webview.postMessage({
@@ -219,7 +225,7 @@ export class ExcalidrawEditor {
       vscode.workspace.onDidChangeConfiguration(async (e) => {
         if (
           !e.affectsConfiguration(
-            "excalidraw.workspaceLibraryPath",
+            "excalidrawStudio.workspaceLibraryPath",
             this.document.uri
           )
         ) {
@@ -277,19 +283,19 @@ export class ExcalidrawEditor {
   }
 
   private getImageParams() {
-    return vscode.workspace.getConfiguration("excalidraw").get("image");
+    return vscode.workspace.getConfiguration("excalidrawStudio").get("image");
   }
 
   private getLanguage() {
     return (
-      vscode.workspace.getConfiguration("excalidraw").get("language") ||
+      vscode.workspace.getConfiguration("excalidrawStudio").get("language") ||
       languageMap[vscode.env.language as keyof typeof languageMap]
     );
   }
 
   private getTheme() {
     return vscode.workspace
-      .getConfiguration("excalidraw")
+      .getConfiguration("excalidrawStudio")
       .get("theme", "light");
   }
 
@@ -300,7 +306,7 @@ export class ExcalidrawEditor {
 
   public async getLibraryUri() {
     const libraryPath = await vscode.workspace
-      .getConfiguration("excalidraw")
+      .getConfiguration("excalidrawStudio")
       .get<string>("workspaceLibraryPath");
     const workspaceFolders = vscode.workspace.workspaceFolders;
     if (!libraryPath || !workspaceFolders) {

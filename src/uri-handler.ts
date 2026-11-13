@@ -1,9 +1,9 @@
 import * as vscode from "vscode";
 import { ExcalidrawEditor } from "./editor";
 
-export class ExcalidrawUriHandler implements vscode.UriHandler {
+export class ExcalidrawStudioUriHandler implements vscode.UriHandler {
   public static register() {
-    const provider = new ExcalidrawUriHandler();
+    const provider = new ExcalidrawStudioUriHandler();
     const providerRegistration = vscode.window.registerUriHandler(provider);
     return providerRegistration;
   }

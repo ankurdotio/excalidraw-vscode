@@ -1,7 +1,10 @@
-# Excalidraw
+# Excalidraw Studio
+
+Based on excalidraw-vscode by pomdtr (MIT).
 
 This extension integrates Excalidraw into VS Code.
-To use it, create an empty file with a `.excalidraw`, `.excalidraw.json`, `.excalidraw.svg` or `excalidraw.png` extension and open it in VSCode.
+To use it, create an empty file with a `.excalidraw`, `.excalidraw.json`,
+`.excalidraw.svg`, or `.excalidraw.png` extension and open it in VS Code.
 
 Try the web version at : <https://excalidraw.com/>
 
@@ -23,14 +26,17 @@ Update the document extension to the desired format. For example, `document.exca
 
 ### Associate Additional Extensions With the Excalidraw Editor
 
-By default, this extension only handles `*.excalidraw`, `*.excalidraw.svg` and `*.excalidraw.png` files.
+By default, this extension handles `*.excalidraw`, `*.excalidraw.json`,
+`*.excalidraw.svg`, and `*.excalidraw.png` files. Choose **Open With...** on a
+matching file, then **Configure default editor for...**, and select
+**Excalidraw Studio** to make it the default.
 
 Add this to your VS Code settings.json file if you want to associate it with additional file extensions (ex: SVG):
 
 ```json
 {
   "workbench.editorAssociations": {
-    "*.svg": "editor.excalidraw"
+    "*.svg": "excalidrawStudio.editor"
   }
 }
 ```
@@ -43,7 +49,7 @@ If you want to use a workspace specific library (and share it with other contrib
 
 ```json
 {
-  "excalidraw.workspaceLibraryPath": "path/to/library.excalidrawlib"
+  "excalidrawStudio.workspaceLibraryPath": "path/to/library.excalidrawlib"
 }
 ```
 

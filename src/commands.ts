@@ -16,7 +16,8 @@ function getConfigurationScope(
 }
 
 async function updateTheme() {
-  const excalidrawConfig = vscode.workspace.getConfiguration("excalidraw");
+  const excalidrawConfig =
+    vscode.workspace.getConfiguration("excalidrawStudio");
   const initialTheme = excalidrawConfig.get<string>("theme");
   // Todo: find out the scope of the current theme config before updating it
   const configurationScope = getConfigurationScope(excalidrawConfig, "theme");
@@ -79,7 +80,7 @@ export async function showEditor(
   await vscode.commands.executeCommand(
     "vscode.openWith",
     uri,
-    "editor.excalidraw",
+    "excalidrawStudio.editor",
     viewColumn
   );
 }
@@ -103,39 +104,41 @@ async function newFile() {
 
 export function registerCommands(context: vscode.ExtensionContext) {
   context.subscriptions.push(
-    vscode.commands.registerCommand("excalidraw.newFile", newFile)
+    vscode.commands.registerCommand("excalidrawStudio.newFile", newFile)
   );
   context.subscriptions.push(
-    vscode.commands.registerCommand("excalidraw.newSceneFile", newFile)
+    vscode.commands.registerCommand("excalidrawStudio.newSceneFile", newFile)
   );
   context.subscriptions.push(
-    vscode.commands.registerCommand("excalidraw.updateTheme", updateTheme)
+    vscode.commands.registerCommand("excalidrawStudio.updateTheme", updateTheme)
   );
   context.subscriptions.push(
-    vscode.commands.registerCommand("excalidraw.showSource", showSource)
+    vscode.commands.registerCommand("excalidrawStudio.showSource", showSource)
   );
   context.subscriptions.push(
-    vscode.commands.registerCommand("excalidraw.showEditor", showEditor)
+    vscode.commands.registerCommand("excalidrawStudio.showEditor", showEditor)
   );
   context.subscriptions.push(
-    vscode.commands.registerCommand("excalidraw.showImage", showImage)
+    vscode.commands.registerCommand("excalidrawStudio.showImage", showImage)
   );
   context.subscriptions.push(
-    vscode.commands.registerCommand("excalidraw.showImageToSide", (uri) =>
+    vscode.commands.registerCommand("excalidrawStudio.showImageToSide", (uri) =>
       showImage(uri, vscode.ViewColumn.Beside)
     )
   );
   context.subscriptions.push(
-    vscode.commands.registerCommand("excalidraw.showEditorToSide", (uri) =>
-      showEditor(uri, vscode.ViewColumn.Beside)
+    vscode.commands.registerCommand(
+      "excalidrawStudio.showEditorToSide",
+      (uri) => showEditor(uri, vscode.ViewColumn.Beside)
     )
   );
   context.subscriptions.push(
-    vscode.commands.registerCommand("excalidraw.showSourceToSide", (uri) =>
-      showSource(uri, vscode.ViewColumn.Beside)
+    vscode.commands.registerCommand(
+      "excalidrawStudio.showSourceToSide",
+      (uri) => showSource(uri, vscode.ViewColumn.Beside)
     )
   );
   context.subscriptions.push(
-    vscode.commands.registerCommand("excalidraw.preventDefault", () => {})
+    vscode.commands.registerCommand("excalidrawStudio.preventDefault", () => {})
   );
 }

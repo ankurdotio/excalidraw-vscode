@@ -1,10 +1,10 @@
 {
-    "name": "excalidraw-editor",
+    "name": "excalidraw-studio",
     "icon": "assets/logo.png",
-    "displayName": "Excalidraw",
+    "displayName": "Excalidraw Studio",
     "description": "Draw schemas in VS Code using Excalidraw",
     "version": "3.9.3",
-    "publisher": "pomdtr",
+    "publisher": "your-publisher-id",
     "engines": {
         "vscode": "^1.63.0"
     },
@@ -34,76 +34,76 @@
     "contributes": {
         "commands": [
             {
-                "command": "excalidraw.updateTheme",
-                "category": "Excalidraw",
+                "command": "excalidrawStudio.updateTheme",
+                "category": "Excalidraw Studio",
                 "title": "Color Theme",
                 "icon": "$(color-mode)"
             },
             {
-                "command": "excalidraw.newFile",
-                "category": "Excalidraw",
+                "command": "excalidrawStudio.newFile",
+                "category": "Excalidraw Studio",
                 "title": "Scene",
                 "icon": "$(color-mode)"
             },
             {
-                "command": "excalidraw.newSceneFile",
-                "category": "Excalidraw",
+                "command": "excalidrawStudio.newSceneFile",
+                "category": "Excalidraw Studio",
                 "title": "New File",
                 "icon": "$(color-mode)"
             },
             {
-                "command": "excalidraw.preventDefault",
-                "category": "Excalidraw",
+                "command": "excalidrawStudio.preventDefault",
+                "category": "Excalidraw Studio",
                 "title": "Prevent Default"
             },
             {
-                "command": "excalidraw.showSource",
-                "category": "Excalidraw",
+                "command": "excalidrawStudio.showSource",
+                "category": "Excalidraw Studio",
                 "title": "Open Source",
                 "icon": "$(go-to-file)"
             },
             {
-                "command": "excalidraw.showEditor",
-                "category": "Excalidraw",
-                "title": "Open Excalidraw",
+                "command": "excalidrawStudio.showEditor",
+                "category": "Excalidraw Studio",
+                "title": "Open Excalidraw Studio",
                 "icon": {
                     "dark": "./assets/menu-icon-dark.png",
                     "light": "./assets/menu-icon-light.png"
                 }
             },
             {
-                "command": "excalidraw.showImage",
-                "category": "Excalidraw",
+                "command": "excalidrawStudio.showImage",
+                "category": "Excalidraw Studio",
                 "title": "Open Image",
                 "icon": "$(go-to-file)"
             },
             {
-                "command": "excalidraw.showSourceToSide",
-                "category": "Excalidraw",
+                "command": "excalidrawStudio.showSourceToSide",
+                "category": "Excalidraw Studio",
                 "title": "Open Source to the Side",
                 "icon": "$(go-to-file)"
             },
             {
-                "command": "excalidraw.showEditorToSide",
-                "category": "Excalidraw",
-                "title": "Open Excalidraw to the Side",
+                "command": "excalidrawStudio.showEditorToSide",
+                "category": "Excalidraw Studio",
+                "title": "Open Excalidraw Studio to the Side",
                 "icon": {
                     "dark": "./assets/menu-icon-dark.png",
                     "light": "./assets/menu-icon-light.png"
                 }
             },
             {
-                "command": "excalidraw.showImageToSide",
-                "category": "Excalidraw",
+                "command": "excalidrawStudio.showImageToSide",
+                "category": "Excalidraw Studio",
                 "title": "Open Image to the Side",
                 "icon": "$(go-to-file)"
             }
         ],
         "configuration": [
             {
-                "title": "Excalidraw",
+                "title": "Excalidraw Studio",
                 "properties": {
-                    "excalidraw.theme": {
+                    "excalidrawStudio.theme": {
                         "description": "Excalidraw theme. Use auto to sync theme with VSCode color theme.",
                         "type": "string",
                         "default": "light",
@@ -113,7 +113,7 @@
                             "dark"
                         ]
                     },
-                    "excalidraw.language": {
+                    "excalidrawStudio.language": {
                         "type": "string",
                         "description": "Language of the Excalidraw Editor. Defauts to the VS Code display language.",
                         "enum": [
@@ -207,12 +207,12 @@
                             "العربية"
                         ]
                     },
-                    "excalidraw.workspaceLibraryPath": {
+                    "excalidrawStudio.workspaceLibraryPath": {
                         "scope": "window",
                         "description": "Path to the file used to store the excalidraw library (relative to workspace root). If not set, the library will be persisted in the user storage.",
                         "type": "string"
                     },
-                    "excalidraw.image": {
+                    "excalidrawStudio.image": {
                         "description": "Settings specifics to image with embed scene.",
                         "type": "object",
                         "properties": {
@@ -258,77 +258,77 @@
         "menus": {
             "commandPalette": [
                 {
-                    "command": "excalidraw.newFile",
+                    "command": "excalidrawStudio.newFile",
                     "when": "false"
                 },
                 {
-                    "command": "excalidraw.updateTheme",
-                    "when": "activeCustomEditorId == 'editor.excalidraw'"
+                    "command": "excalidrawStudio.updateTheme",
+                    "when": "activeCustomEditorId == 'excalidrawStudio.editor'"
                 },
                 {
-                    "command": "excalidraw.preventDefault",
+                    "command": "excalidrawStudio.preventDefault",
                     "when": "false"
                 },
                 {
-                    "command": "excalidraw.showSource",
+                    "command": "excalidrawStudio.showSource",
                     "when": "false"
                 },
                 {
-                    "command": "excalidraw.showEditor",
+                    "command": "excalidrawStudio.showEditor",
                     "when": "false"
                 },
                 {
-                    "command": "excalidraw.showImage",
+                    "command": "excalidrawStudio.showImage",
                     "when": "false"
                 },
                 {
-                    "command": "excalidraw.showSourceToSide",
+                    "command": "excalidrawStudio.showSourceToSide",
                     "when": "false"
                 },
                 {
-                    "command": "excalidraw.showEditorToSide",
+                    "command": "excalidrawStudio.showEditorToSide",
                     "when": "false"
                 },
                 {
-                    "command": "excalidraw.showImageToSide",
+                    "command": "excalidrawStudio.showImageToSide",
                     "when": "false"
                 }
             ],
             "editor/title": [
                 {
-                    "command": "excalidraw.showEditor",
-                    "alt": "excalidraw.showEditorToSide",
-                    "when": "activeCustomEditorId != 'editor.excalidraw' && resourceFilename =~ /^.+\\.excalidraw(.png|.svg)?$/",
+                    "command": "excalidrawStudio.showEditor",
+                    "alt": "excalidrawStudio.showEditorToSide",
+                    "when": "activeCustomEditorId != 'excalidrawStudio.editor' && resourceFilename =~ /^.+\\.excalidraw(.png|.svg)?$/",
                     "group": "navigation"
                 },
                 {
-                    "command": "excalidraw.showSource",
-                    "alt": "excalidraw.showSourceToSide",
+                    "command": "excalidrawStudio.showSource",
+                    "alt": "excalidrawStudio.showSourceToSide",
                     "group": "navigation",
-                    "when": "activeCustomEditorId == 'editor.excalidraw' && resourceFilename =~ /^.+\\.excalidraw(.svg)?$/"
+                    "when": "activeCustomEditorId == 'excalidrawStudio.editor' && resourceFilename =~ /^.+\\.excalidraw(.svg)?$/"
                 },
                 {
-                    "command": "excalidraw.showImage",
-                    "alt": "excalidraw.showImageToSide",
-                    "when": "activeCustomEditorId == 'editor.excalidraw' && resourceFilename =~ /^.+\\.excalidraw.png$/",
+                    "command": "excalidrawStudio.showImage",
+                    "alt": "excalidrawStudio.showImageToSide",
+                    "when": "activeCustomEditorId == 'excalidrawStudio.editor' && resourceFilename =~ /^.+\\.excalidraw.png$/",
                     "group": "navigation"
                 },
                 {
-                    "command": "excalidraw.updateTheme",
-                    "when": "activeCustomEditorId == 'editor.excalidraw'",
+                    "command": "excalidrawStudio.updateTheme",
+                    "when": "activeCustomEditorId == 'excalidrawStudio.editor'",
                     "group": "navigation"
                 }
             ],
             "file/newFile": [
                 {
-                    "command": "excalidraw.newFile"
+                    "command": "excalidrawStudio.newFile"
                 }
             ]
         },
         "customEditors": [
             {
-                "viewType": "editor.excalidraw",
-                "displayName": "Excalidraw",
+                "viewType": "excalidrawStudio.editor",
+                "displayName": "Excalidraw Studio",
                 "priority": "default",
                 "selector": [
                     {
@@ -348,16 +348,16 @@
         ],
         "keybindings": [
             {
-                "command": "excalidraw.preventDefault",
+                "command": "excalidrawStudio.preventDefault",
                 "key": "ctrl+z",
                 "mac": "cmd+z",
-                "when": "activeCustomEditorId == 'editor.excalidraw'"
+                "when": "activeCustomEditorId == 'excalidrawStudio.editor'"
             },
             {
-                "command": "excalidraw.preventDefault",
+                "command": "excalidrawStudio.preventDefault",
                 "key": "ctrl+y",
                 "mac": "cmd+shift+z",
-                "when": "activeCustomEditorId == 'editor.excalidraw'"
+                "when": "activeCustomEditorId == 'excalidrawStudio.editor'"
             }
         ]
     },

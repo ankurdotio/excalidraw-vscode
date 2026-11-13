@@ -1,4 +1,6 @@
-# Excalidraw
+# Excalidraw Studio
+
+Based on excalidraw-vscode by pomdtr (MIT).
 
 This extension integrates Excalidraw into VS Code.
 To use it, create an empty file with a `.excalidraw`, `.excalidraw.json`, `.excalidraw.svg` or `.excalidraw.png` extension and open it in Visual Studio Code.
@@ -28,11 +30,11 @@ You can also switch between text and image format by updating the file extension
 
 ![Image can be edited directly](./medias/edit_image.gif)
 
-You can control the default export options using the `excalidraw.image` setting:
+You can control the default export options using the `excalidrawStudio.image` setting:
 
 ```json
 {
-  "excalidraw.image": {
+  "excalidrawStudio.image": {
     "exportScale": 1,
     "exportWithBackground": true,
     "exportWithDarkMode": false
@@ -69,14 +71,30 @@ You can switch between the Excalidraw editor and the source (text or image) usin
 
 ### Associate Additional Extensions with the Excalidraw Editor
 
-By default, this extension only handles `*.excalidraw`, `*.excalidraw.svg` and `*.excalidraw.png` files.
+By default, this extension handles `*.excalidraw`, `*.excalidraw.json`,
+`*.excalidraw.svg`, and `*.excalidraw.png` files. It can be installed alongside
+the original extension because it has a distinct extension identifier. To use
+Excalidraw Studio as the default editor, right-click a matching file, select
+**Open With...**, then **Configure default editor for...** and choose
+**Excalidraw Studio**. You can also set the associations directly:
+
+```json
+{
+  "workbench.editorAssociations": {
+    "*.excalidraw": "excalidrawStudio.editor",
+    "*.excalidraw.json": "excalidrawStudio.editor",
+    "*.excalidraw.svg": "excalidrawStudio.editor",
+    "*.excalidraw.png": "excalidrawStudio.editor"
+  }
+}
+```
 
 Add this to your VS Code `settings.json` file if you want to associate it with additional file extensions (ex: SVG):
 
 ```json
 {
   "workbench.editorAssociations": {
-    "*.svg": "editor.excalidraw"
+    "*.svg": "excalidrawStudio.editor"
   }
 }
 ```
@@ -85,11 +103,11 @@ You won't be able to edit arbitrary SVG files though - only those that have been
 
 ### Sharing your Library
 
-If you want to use a workspace specific library (and share it with other contributors), set the `excalidraw.workspaceLibraryPath` in your Visual Studio Code workspace settings file (`.vscode/settings.json`):
+If you want to use a workspace specific library (and share it with other contributors), set the `excalidrawStudio.workspaceLibraryPath` in your Visual Studio Code workspace settings file (`.vscode/settings.json`):
 
 ```json
 {
-  "excalidraw.workspaceLibraryPath": "path/to/library.excalidrawlib"
+  "excalidrawStudio.workspaceLibraryPath": "path/to/library.excalidrawlib"
 }
 ```
 
@@ -97,11 +115,11 @@ The `workspaceLibraryPath` path is relative to your workspace root. Absolute pat
 
 ### Configure Language
 
-By default, the extension will use the [Visual Studio Code Display Language](https://code.visualstudio.com/docs/getstarted/locales) to determine the language to use. You can overwrite it using the `excalidraw.language` setting:
+By default, the extension will use the [Visual Studio Code Display Language](https://code.visualstudio.com/docs/getstarted/locales) to determine the language to use. You can overwrite it using the `excalidrawStudio.language` setting:
 
 ```json
 {
-  "excalidraw.language": "fr-FR"
+  "excalidrawStudio.language": "fr-FR"
 }
 ```
 

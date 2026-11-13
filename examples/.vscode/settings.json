@@ -1,7 +1,7 @@
 {
-  "excalidraw.workspaceLibraryPath": "library.excalidrawlib",
-  "excalidraw.theme": "auto",
-  "excalidraw.image": {
+  "excalidrawStudio.workspaceLibraryPath": "library.excalidrawlib",
+  "excalidrawStudio.theme": "auto",
+  "excalidrawStudio.image": {
     "exportScale": 2,
     "exportWithBackground": true,
     "exportWithDarkMode": false
