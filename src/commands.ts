@@ -1,5 +1,8 @@
 import * as vscode from "vscode";
 import { newUntitledExcalidrawDocument } from "./utils";
+import { toggleActiveIconPanel } from "./iconPanelCommand";
+import { openCodeBlockEditor } from "./codeBlockCommand";
+import { activateWebFrameTool } from "./webFrameCommand";
 
 function getConfigurationScope(
   config: vscode.WorkspaceConfiguration,
@@ -108,6 +111,42 @@ export function registerCommands(context: vscode.ExtensionContext) {
   );
   context.subscriptions.push(
     vscode.commands.registerCommand("excalidrawStudio.newSceneFile", newFile)
+  );
+  context.subscriptions.push(
+    vscode.commands.registerCommand("excalidrawStudio.insertIcon", async () => {
+      const toggled = await toggleActiveIconPanel();
+      if (!toggled) {
+        await vscode.window.showInformationMessage(
+          "Open an editable Excalidraw Studio drawing to use the icon library."
+        );
+      }
+    })
+  );
+  context.subscriptions.push(
+    vscode.commands.registerCommand(
+      "excalidrawStudio.insertCodeBlock",
+      async () => {
+        const opened = await openCodeBlockEditor();
+        if (!opened) {
+          await vscode.window.showInformationMessage(
+            "Open an editable Excalidraw Studio drawing to insert a code block."
+          );
+        }
+      }
+    )
+  );
+  context.subscriptions.push(
+    vscode.commands.registerCommand(
+      "excalidrawStudio.insertWebFrame",
+      async () => {
+        const opened = await activateWebFrameTool();
+        if (!opened) {
+          await vscode.window.showInformationMessage(
+            "Open an editable Excalidraw Studio drawing to insert a web frame."
+          );
+        }
+      }
+    )
   );
   context.subscriptions.push(
     vscode.commands.registerCommand("excalidrawStudio.updateTheme", updateTheme)

@@ -23,6 +23,20 @@ Try the web version at : <https://excalidraw.com/>
 
 ## Features
 
+### Drawing shortcuts
+
+With the drawing focused, use these shortcuts (customizable in VS Code's
+Keyboard Shortcuts):
+
+| Action | macOS | Windows/Linux |
+| --- | --- | --- |
+| Toggle icon library | Cmd+Option+Shift+I | Ctrl+Alt+Shift+I |
+| Select web-frame tool | Cmd+Option+Shift+W | Ctrl+Alt+Shift+W |
+| Insert code block | Cmd+Option+Shift+C | Ctrl+Alt+Shift+C |
+
+The web-frame shortcut selects the embed tool; draw a frame and enter its URL.
+Shortcuts apply to the drawing canvas, not while typing in an inline code block.
+
 ### Edit Images
 
 The source of the drawing can be embedded directly in a PNG or SVG image. Just create a new `.excalidraw.png` or `.excalidraw.svg` file.

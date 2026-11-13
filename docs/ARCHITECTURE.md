@@ -39,45 +39,70 @@ the filesystem.
 
 ## Host/webview messages
 
-| Direction       | Type                  | Purpose                                                                                       |
-| --------------- | --------------------- | --------------------------------------------------------------------------------------------- |
-| Webview to host | `change`              | Persist serialized JSON, SVG, or PNG bytes in the custom document.                            |
-| Webview to host | `library-change`      | Store an updated Excalidraw library in global state or the configured workspace library file. |
-| Webview to host | `link-open`           | Open a drawing link in VS Code or externally.                                                 |
-| Webview to host | `error`               | Show a webview error to the user.                                                             |
-| Webview to host | `info`                | Show an informational notification; supported by the host listener.                           |
-| Host to webview | `theme-change`        | Apply an updated theme setting.                                                               |
-| Host to webview | `language-change`     | Apply an updated language setting.                                                            |
-| Host to webview | `image-params-change` | Apply updated image export settings.                                                          |
-| Host to webview | `library-change`      | Load or replace/merge library items.                                                          |
+| Direction       | Type                    | Purpose                                                                                       |
+| --------------- | ----------------------- | --------------------------------------------------------------------------------------------- |
+| Webview to host | `change`                | Persist serialized JSON, SVG, or PNG bytes in the custom document.                            |
+| Webview to host | `library-change`        | Store an updated Excalidraw library in global state or the configured workspace library file. |
+| Webview to host | `link-open`             | Open a drawing link in VS Code or externally.                                                 |
+| Webview to host | `error`                 | Show a webview error to the user.                                                             |
+| Webview to host | `info`                  | Show an informational notification; supported by the host listener.                           |
+| Webview to host | `embed-check`           | Check remote page headers and metadata in the Node desktop host.                              |
+| Webview to host | `embed-open`            | Open an embed in the external browser or VS Code Simple Browser.                              |
+| Webview to host | `embed-map-url`         | Map remote localhost URLs through `vscode.env.asExternalUri`.                                 |
+| Host to webview | `theme-change`          | Apply an updated theme setting.                                                               |
+| Host to webview | `language-change`       | Apply an updated language setting.                                                            |
+| Host to webview | `image-params-change`   | Apply updated image export settings.                                                          |
+| Host to webview | `library-change`        | Load or replace/merge library items.                                                          |
+| Host to webview | `embed-check-result`    | Return frame policy, title, and favicon metadata.                                             |
+| Host to webview | `embed-settings-change` | Apply updated embed domain and detection settings.                                            |
+| Host to webview | `embed-url-result`      | Return a remote-mapped localhost URL.                                                         |
 
 ## Settings and initial configuration
 
 Before the page is loaded, `ExcalidrawEditor` reads the active workspace
 configuration and includes `theme`, `language`, `imageParams`, and library
-content in the injected webview configuration. Language falls back to the
+content, along with embed settings, desktop-check availability, and remote
+session state, in the injected webview configuration. Language falls back to the
 current VS Code display language. The workspace library path is resolved from
 the `excalidrawStudio.workspaceLibraryPath` setting; without it, the library
 uses extension `globalState`.
 
 The editor listens for configuration changes and posts the corresponding
 `theme-change`, `language-change`, `image-params-change`, or `library-change`
-message. The webview settings controls do not write those settings directly.
+message. Embed setting changes are sent with `embed-settings-change`. The
+webview settings controls do not write those settings directly.
 
 ## Planned feature integration points
 
-- **Embeds:** wire `validateEmbeddable` and `renderEmbeddable` into the
-  `<Excalidraw>` component in `webview/src/App.tsx`. Webview UI and URL helpers
-  belong under `webview/src/features/embeds/`; desktop-only frame checks and
-  external-browser requests need a small host interface and message handlers
-  in `src/editor.ts`.
+- **Embeds:** `webview/src/features/embeds/` contains URL validation, the
+  custom frame and link-card UI. `App.tsx` preserves Excalidraw's built-in
+  renderer for supported providers and delegates other URLs to the custom
+  frame. The Node host uses `src/embedCheck.node.ts` for desktop-only header
+  checks, page metadata, redirects, timeout, and session caching; the browser
+  build omits this service. `src/editor.ts` handles external/browser actions,
+  configuration updates, and remote localhost mapping.
 - **Icons:** add icon search, SVG construction, and panel UI under
   `webview/src/features/icons/`. Keep `App.tsx` changes limited to Excalidraw
   panel/toolbar wiring and add a host command for the active editor.
-- **Code blocks:** put rendering, editing, and layout helpers under
-  `webview/src/features/code-blocks/`, with shared image/scene helpers in
-  `webview/src/lib/`. Wire the editor and commands through `App.tsx` and
-  `src/commands.ts`.
+- **Code blocks:** `webview/src/features/code-blocks/` contains the persistent
+  on-canvas CodeMirror editor and Shiki tokenization. Each block is stored as a
+  standard Excalidraw text element with source/options in `customData`; code is
+  not rasterized. Borderless transparent CodeMirror surfaces are positioned
+  with public scene/viewport helpers and follow zoom/scroll. They remain visible
+  after saving and reopening; Done/outside-click only exits edit mode, while
+  Cancel restores the pre-edit text element. CodeMirror copy, cut and paste
+  events stop before Excalidraw's document clipboard handlers, while clipboard
+  shortcut keydowns reach VS Code's webview event forwarding. Source-derived
+  text and surface bounds are capped at 800 by 520 scene units, with larger code
+  scrolling inside the editor. The editor surface is extension UI,
+  so it is absent from Excalidraw exports and other clients.
+  `src/codeBlockTheme.ts` reads the active VS Code theme through extension
+  contributions and `workspace.fs`, follows JSONC includes, and merges user
+  TextMate/color overrides. Theme/configuration changes send
+  `code-block-settings-change` messages. One shared highlighter colors the
+  persistent CodeMirror surfaces, without a separate theme picker. The saved
+  text element's `customData` includes its source/options and theme snapshot. Commands
+  and initial configuration are wired through the host and `App.tsx`.
 
 The planned features use standard Excalidraw elements so existing file loading
 and serialization continue to own persistence and undo behavior.

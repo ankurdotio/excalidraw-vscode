@@ -4,6 +4,10 @@ This checklist tracks the tasks and acceptance criteria in
 [`COPILOT_PROMPT.md`](./COPILOT_PROMPT.md). A phase is complete only after its
 checks pass, its commit is created, and its summary is reported.
 
+At the user's request, the icon, web-frame, and code-block implementations were
+committed separately, with shared integration in the code-block commit. Pending
+manual checks still prevent phase sign-off.
+
 ## Phase 0: Set up the fork
 
 - [x] Add the original repository as the `upstream` remote.
@@ -33,7 +37,7 @@ checks pass, its commit is created, and its summary is reported.
       `npm run open-in-browser` attempt failed before Chromium started
       (`spawn Unknown system error -88`); the no-browser fallback also could not
       load the test workbench assets.
-- [ ] Create the Phase 0 commit.
+- [x] Create the Phase 0 commit (`6600baa`).
 
 ## Phase 0 acceptance
 
@@ -49,35 +53,67 @@ checks pass, its commit is created, and its summary is reported.
 
 ## Phase 1: Make web embeds work
 
+- Automated preflight confirmed the installed provider allowlist, `scrolling="no"`,
+  and conditional `allow-same-origin`; HTTP probes found GitHub sends
+  `X-Frame-Options: DENY` and `frame-ancestors 'none'`, while Google sends
+  `X-Frame-Options: SAMEORIGIN`. The user asked to proceed before providing the
+  requested F5 UI observations, so those manual diagnosis results remain
+  unverified.
 - [ ] Diagnose YouTube, react.dev, github.com/google.com, and localhost:5173
       with Excalidraw's embed tool before changing behavior.
 - [ ] Report diagnosis of allowlist, scrolling, sandbox, frame-blocking headers,
       and VS Code webview restrictions.
-- [ ] Implement `validateEmbeddable` using the `excalidrawStudio.embeds.*`
+- [x] Implement `validateEmbeddable` using the `excalidrawStudio.embeds.*`
       settings; allow HTTP(S), configured hosts, and localhost loopback, and reject
       all other schemes.
-- [ ] Add unit tests for URL validation and frame-header parsing.
-- [ ] Keep built-in providers on Excalidraw's renderer.
-- [ ] Render other URLs in a scrollable frame with the required sandbox,
+- [x] Add unit tests for URL validation and frame-header parsing.
+- [x] Keep built-in providers on Excalidraw's renderer.
+- [x] Render other URLs in a scrollable frame with the required sandbox,
       permissions, and referrer policy.
-- [ ] Add Reload, Open in browser, Open in Simple Browser, and Show as link card
+- [x] Add Reload, Open in browser, Open in Simple Browser, and Show as link card
       actions without changing selection/drag/resize/click behavior.
-- [ ] Add a Node-targeted host bundle alongside the browser bundle, with
+- [x] Add a Node-targeted host bundle alongside the browser bundle, with
       desktop-only frame-blocking checks, page title/favicon metadata, a 5-second
       timeout, redirect handling, and per-session URL caching.
-- [ ] Render blocked sites as link cards with the required actions and
+- [x] Render blocked sites as link cards with the required actions and
       Try-embedding override; store `embedMode` in element `customData`.
-- [ ] Skip frame checks in the web extension build.
-- [ ] Map remote localhost URLs with `vscode.env.asExternalUri`.
+- [x] Skip frame checks in the web extension build.
+- [x] Map remote localhost URLs with `vscode.env.asExternalUri`.
 - [ ] Diagnose/document any YouTube referrer-policy failure.
 - [ ] Verify react.dev scrolling and localhost Vite hot reload.
 - [ ] Verify github.com link-card behavior and all card actions on desktop.
 - [ ] Verify YouTube and Figma behavior.
 - [ ] Verify embeds move, resize, delete, undo, save, and reload.
 - [ ] Verify embeds export as Excalidraw placeholders.
-- [ ] Verify vscode.dev does not crash.
+- [ ] Verify vscode.dev does not crash (web smoke test is non-blocking until
+      Phase 4).
+- [x] Commit web-frame components (`59189b6`); shared integration follows in
+      the code-block commit.
 
 ## Phase 2: Built-in icon library
+
+Phase 2 was started at the user's request; Phase 1 manual confirmation remains
+pending.
+
+### Rendering fixes verified automatically
+
+- Fixed the sidebar's missing tab-context crash.
+- Removed duplicate SVG namespace attributes that prevented image decoding;
+  added a regression test.
+- Constrained the grid viewport so the full library does not mount at once:
+  the browser check rendered 27–36 previews while scrolling 6,594 Tabler icons.
+- Memoized previews/tiles and used small preview SVGs while keeping inserted
+  assets at 512 px intrinsic resolution.
+- Applied Excalidraw's `--theme-filter` to sidebar previews. Browser checks
+  confirmed dark/light/dark switching matches the canvas filter without
+  rewriting icon colors, and saved image data decodes successfully.
+- Build and 19 unit tests pass; targeted icon lint passes. Host lint has no
+  errors and retains five formatting warnings from the in-progress host work.
+- VS Code UI confirmation remains pending. Icon components were committed in
+  `33f78a3`, with shared integration in the code-block commit. Full performance
+  acceptance is not signed off: ordinary row scrolling measured approximately
+  16.7 ms per frame, but rapid paging was slower and one warmed search update
+  exceeded 100 ms in the local browser check.
 
 - [ ] Add shared image insertion/replacement and floating-toolbar helpers.
 - [ ] Test shared pure helpers and the icon SVG builder.
@@ -106,27 +142,52 @@ checks pass, its commit is created, and its summary is reported.
 
 ## Phase 3: Code blocks
 
-- [ ] Add the specified Shiki, CodeMirror, and JetBrains Mono dependencies.
-- [ ] Use `shiki/core` with the JavaScript regex engine (no WASM) and lazy,
+The user replaced the modal workflow with direct canvas editing and automatic
+VS Code theming. Phase 1/2 manual gates remain pending.
+
+- [x] Add the specified Shiki, CodeMirror, and JetBrains Mono dependencies.
+- [x] Use `shiki/core` with the JavaScript regex engine (no WASM) and lazy,
       fine-grained language/theme imports.
-- [ ] Verify lazy chunk resolution in the webview and adjust Vite base handling
-      if required.
-- [ ] Implement the PNG renderer with syntax tokens, layout, font, title,
-      optional dots/gutter/highlight, tab conversion, token styles, and line limit.
-- [ ] Implement the CodeMirror editor modal, syntax language/theme controls,
-      options, preview, keyboard behavior, and remembered preferences.
-- [ ] Include searchable language selection, the specified common languages
-      and themes, font-size/line-number/title/window-dot/highlight controls, and
-      modal keyboard isolation.
-- [ ] Add Code insertion UI/command and select the inserted block.
-- [ ] Add block editing, toolbar actions, view-only Copy code, and the specified
+- [x] Use Vite `base: "./"` so lazy chunks/font URLs are relative to the webview
+      resource URI; verify local built-webview loading without asset errors.
+- [x] Store code blocks as standard Excalidraw text elements with source/options
+      in `customData`; do not render or replace code with images.
+- [x] Keep each borderless, transparent CodeMirror surface on the canvas after
+      saving and reopening; show language selection and icon-only Cancel/Done
+      only while editing.
+- [x] Debounce source saves, flush on click-away/Done, and restore the edit
+      session baseline on Cancel.
+- [x] Let inactive code surfaces pass pointer input through so their standard
+      Excalidraw text elements remain selectable and movable.
+- [x] Isolate CodeMirror clipboard events from Excalidraw's document handlers;
+      cap code-block dimensions at 800 by 520 scene units and scroll large code.
+      Native clipboard browser checks confirm copy, cut and paste after reopening
+      a selected block, no duplicate canvas text and normal canvas pasting.
+      An emulated VS Code webview check verifies clipboard shortcuts reach its
+      window listener before a forwarded paste is dispatched.
+- [x] Keep Enter and the save shortcut available to CodeMirror after reopening
+      a selected code block.
+- [x] Read the active VS Code theme, inherited JSONC themes and user TextMate/color
+      customizations. Use Shiki colors in the editor; update active surfaces on
+      theme changes without a separate theme selector.
+- [x] Add Code insertion UI/command for a persistent canvas code surface.
+- [x] Add persistent block editing, keyboard isolation and the specified
       code-block `customData`.
-- [ ] Test code-block layout and highlight-line parsing pure functions.
-- [ ] Add the specified settings.
-- [ ] Verify JS/Python/Bash/JSON rendering, crisp zoom, and correct dark colors.
+- [x] Test code-block layout, highlight parsing, JSONC parsing and saved theme validation.
+- [x] Add language/font/line-number/window-control settings; theme
+      follows VS Code instead of a separate default-theme setting.
+- [x] Fix the nested theme-validator export and unused parser argument; full build passes.
+- [x] Browser fixture verifies persistent editor surfaces, live theme token colors,
+      source/language reload, same text-element ID/top-left, moving the unfocused
+      surface with its text element and reopening it, Undo/Redo, shortcut
+      isolation, the 500-line limit and serialized source/theme snapshots.
+- [ ] Verify JS/Python/Bash/JSON highlighting, persistent surfaces, zoom, and dark colors.
 - [ ] Verify edit reloads source/options, position retention, and Undo/Redo.
-- [ ] Verify exact Copy code content and save/reopen compatibility.
-- [ ] Verify PNG/SVG exports, modal shortcut isolation, and Phase 0 regression.
+- [ ] Verify autosaved source and save/reopen compatibility.
+- [ ] Verify the documented export/client limitation, inline shortcut isolation,
+      and Phase 0 regression.
+- [x] Commit code-block components and shared integration.
+- [ ] Receive VS Code manual results for Phase 3.
 
 ## Phase 4: Polish and package
 

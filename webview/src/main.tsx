@@ -127,6 +127,13 @@ async function main() {
             isDirty ? -1 : hashElementsVersion(initialData.elements || [])
           )}
           imageParams={config.imageParams}
+          embedSettings={config.embedSettings}
+          embedCheckAvailable={config.embedCheckAvailable}
+          remoteSession={config.remoteSession}
+          iconSettings={config.iconSettings}
+          iconPreferences={config.iconPreferences}
+          codeBlockSettings={config.codeBlockSettings}
+          codeBlockPreferences={config.codeBlockPreferences}
           langCode={config.langCode}
           dirty={isDirty}
         />

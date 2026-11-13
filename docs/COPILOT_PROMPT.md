@@ -2,12 +2,12 @@
 
 ## 0. Fill these in (or keep the working defaults)
 
-| Placeholder | Working default | Used for |
-|---|---|---|
-| `{{DISPLAY_NAME}}` | `Excalidraw Studio` | Marketplace display name (check it's free before publishing) |
-| `{{EXT_NAME}}` | `excalidraw-studio` | `package.json` `name` |
-| `{{PUBLISHER}}` | `your-publisher-id` | `package.json` `publisher` |
-| `{{PREFIX}}` | `excalidrawStudio` | Prefix for every command ID, setting key and the custom editor `viewType` |
+| Placeholder        | Working default     | Used for                                                                  |
+| ------------------ | ------------------- | ------------------------------------------------------------------------- |
+| `{{DISPLAY_NAME}}` | `Excalidraw Studio` | Marketplace display name (check it's free before publishing)              |
+| `{{EXT_NAME}}`     | `excalidraw-studio` | `package.json` `name`                                                     |
+| `{{PUBLISHER}}`    | `your-publisher-id` | `package.json` `publisher`                                                |
+| `{{PREFIX}}`       | `excalidrawStudio`  | Prefix for every command ID, setting key and the custom editor `viewType` |
 
 ---
 
@@ -40,7 +40,7 @@ The result must run locally from a `.vsix` file and be clean enough to publish t
 
 - **Keep the Excalidraw UX.** Additions must look native. Use Excalidraw's own components (`Sidebar`, `MainMenu`, `Footer`, `renderTopRightUI`) and its CSS variables and "island" styling. They must work in light and dark themes.
 - **Public API only.** Use only the props, `excalidrawAPI` methods and exported helpers of `@excalidraw/excalidraw`. No editing `node_modules`, no `patch-package`, no copying Excalidraw internals.
-- **Keep files compatible.** No new element types. Icons and code blocks are standard `image` elements; embeds are standard `embeddable` elements. Store extra data only in the element's `customData`. Files must still open on excalidraw.com, where icons and code blocks show as images.
+- **Keep files compatible.** No new element types. Icons are standard `image` elements, code blocks are standard `text` elements, and embeds are standard `embeddable` elements. Store extra data only in the element's `customData`. Files must still open on excalidraw.com; code blocks use native Excalidraw text there.
 - **Offline.** No CDN or runtime downloads for app code, fonts, icons, grammars or themes. Everything is bundled. The only network traffic allowed is the embedded website itself and the frame-blocking check in Phase 1.
 - **Keep the web build working.** The extension currently runs in vscode.dev. Features that need Node.js must degrade gracefully there.
 - **View-only mode** (the extension's `isViewOnly()`, for example git diffs) hides all insert and edit UI.
@@ -49,22 +49,25 @@ The result must run locally from a `.vsix` file and be clean enough to publish t
 ## 4. Facts already verified in this codebase (re-check, don't trust blindly)
 
 **Extension host (`src/`)**
+
 - Files: `extension.ts`, `editor.ts` (custom editor provider, builds the webview HTML), `document.ts`, `commands.ts`, `uri-handler.ts`, `utils.ts`, `lang.ts`.
 - Built by `webpack.config.js` with `target: "webworker"`. `package.json` has only a `"browser"` entry, so it's a web extension with **no Node APIs** today, and its `fetch` is subject to CORS.
 - `editor.ts` reads `webview/dist/index.html`, injects a base64 config into `data-excalidraw-config`, and sets `window.EXCALIDRAW_ASSET_PATH` to the webview `dist` folder URI (with a trailing slash). **No Content Security Policy is set.**
 - Identity strings to rename: the custom editor `viewType` `editor.excalidraw`; every command and setting prefixed `excalidraw.`; `libraryReturnUrl` hard-coded as `vscode://pomdtr.excalidraw-editor/importLib` in `App.tsx`; `window.EXCALIDRAW_EXPORT_SOURCE` in `webview/index.html` pointing at the original Marketplace page; the URI handler.
 
 **Webview (`webview/`)**
+
 - React 18, Vite 6, TypeScript 5.7, `@excalidraw/excalidraw` ^0.18.1 (0.18.1 is the current latest on npm).
 - `App.tsx` renders `<Excalidraw>` and passes **no `validateEmbeddable` and no `renderEmbeddable`**.
 - `main.tsx` loads the file and debounces `onChange` (250 ms), comparing `hashElementsVersion`.
 - `vscode.ts` serializes per file type: JSON via `serializeAsJSON(..., "local")`, which drops files not referenced by any element; SVG via `exportToSvg`; PNG via `exportToBlob`.
 
 **Excalidraw 0.18.1 behavior that matters here**
-- The default embed allowlist covers only youtube.com, youtu.be, vimeo.com, player.vimeo.com, figma.com, link.excalidraw.com, gist.github.com, twitter.com, x.com, *.simplepdf.eu, stackblitz.com, val.town, giphy.com and reddit.com.
+
+- The default embed allowlist covers only youtube.com, youtu.be, vimeo.com, player.vimeo.com, figma.com, link.excalidraw.com, gist.github.com, twitter.com, x.com, \*.simplepdf.eu, stackblitz.com, val.town, giphy.com and reddit.com.
 - The built-in embed `<iframe>` uses `scrolling="no"` and a sandbox that only includes `allow-same-origin` for a short list of known providers. Most other sites can't scroll, and many break without same-origin storage access.
 - `renderEmbeddable(element, appState)` replaces the built-in iframe. Returning `null` falls back to the built-in one.
-- **Dark mode:** Excalidraw inverts the whole canvas (`invert(93%) hue-rotate(180deg)`). Raster images (PNG, JPEG, WebP) get a counter-filter so they keep their real colors. **SVG images do not.** So SVG icons invert exactly like normal strokes (good for icons), while an SVG code block would show the wrong theme colors (so code blocks must be PNG).
+- **Dark mode:** Excalidraw inverts the whole canvas (`invert(93%) hue-rotate(180deg)`). Raster images (PNG, JPEG, WebP) get a counter-filter so they keep their real colors. **SVG images do not.** SVG icons invert exactly like normal strokes (good for icons). Code blocks are persistent CodeMirror surfaces over standard text elements and are not rasterized.
 - **Double-clicking a selected image starts image cropping.** Icons and code blocks need that intercepted.
 - Exports you'll need: `CaptureUpdateAction`, `convertToExcalidrawElements`, `newElementWith`, `sceneCoordsToViewportCoords`, `viewportCoordsToSceneCoords`, `Sidebar`, `MainMenu`, `Footer`. Useful props: `renderTopRightUI`, `onScrollChange`, `onPointerUp`.
 
@@ -73,6 +76,7 @@ The result must run locally from a `.vsix` file and be clean enough to publish t
 ## Phase 0: Set up the fork (no features yet)
 
 **Tasks**
+
 1. Add the original repo as the `upstream` remote. Run `npm install` and `npm run build`, launch the Extension Development Host (F5), and confirm everything works **before** changing anything.
 2. Rename the identity to `{{DISPLAY_NAME}}` / `{{EXT_NAME}}` / `{{PUBLISHER}}` / `{{PREFIX}}` everywhere listed in section 4: `viewType`, all command IDs, all setting keys, `libraryReturnUrl`, `EXCALIDRAW_EXPORT_SOURCE`, the URI handler, and the `contributes` titles and categories. Keep the same file associations (`*.excalidraw`, `*.excalidraw.json`, `*.excalidraw.svg`, `*.excalidraw.png`). It must be possible to install it alongside the original extension; tell me how to pick it as the default editor.
 3. Licensing: keep the original MIT `LICENSE` with its copyright line, add my copyright line under it, and add a README note: "Based on excalidraw-vscode by pomdtr (MIT)".
@@ -80,6 +84,7 @@ The result must run locally from a `.vsix` file and be clean enough to publish t
 5. Create `docs/PROGRESS.md` and `docs/TESTING.md` (a manual regression checklist, see below).
 
 **Acceptance (regression baseline, which every later phase must keep passing)**
+
 - Open, edit and save `.excalidraw`, `.excalidraw.svg` and `.excalidraw.png` files. The unsaved-changes dot, Save, Revert, Undo/Redo, theme (light/dark/auto), language setting, library import and workspace library all behave exactly as before.
 - Opening a file from a git diff is view-only.
 - The web build still loads (for example with `npx @vscode/test-web --extensionDevelopmentPath=.`).
@@ -89,6 +94,7 @@ The result must run locally from a `.vsix` file and be clean enough to publish t
 ## Phase 1: Make web embeds work
 
 **Tasks**
+
 1. **Diagnose first.** Using Excalidraw's own web-embed tool, try: a YouTube video, a docs site such as react.dev, a site known to refuse framing (github.com or google.com), and a local Vite dev server on `http://localhost:5173`. Report what fails and why, **before fixing anything**. Suspects to confirm or rule out: the default allowlist, `scrolling="no"`, the sandbox missing `allow-same-origin`, sites sending `X-Frame-Options` or CSP `frame-ancestors`, and limits of VS Code's own webview sandbox (popups, fullscreen).
 2. **`validateEmbeddable`**, driven by settings:
    - `{{PREFIX}}.embeds.allowAllDomains` (boolean, default `true`): any `http`/`https` URL is allowed.
@@ -111,6 +117,7 @@ The result must run locally from a `.vsix` file and be clean enough to publish t
 6. YouTube: if it shows a player error inside the webview, investigate the referrer policy. If it can't be fixed, document it.
 
 **Acceptance**
+
 - react.dev embeds and **scrolls**. A local Vite app embeds, and hot reload shows inside the frame.
 - github.com shows a link card automatically on desktop. Its buttons work.
 - YouTube and Figma behave as well as or better than before.
@@ -123,6 +130,7 @@ The result must run locally from a `.vsix` file and be clean enough to publish t
 ## Phase 2: Built-in icon library
 
 **Tasks**
+
 1. **Shared scene helpers** (`webview/src/lib/`), also used by Phase 3:
    - `insertImageElement({ dataURL, mimeType, width, height, customData, at })`: add the file with `excalidrawAPI.addFiles`, add the element, select it, undoable.
    - `replaceImageOfElement(elementId, { dataURL, mimeType, width, height, customData })`: keep the same element ID and top-left position, swap the file, bump the version, undoable.
@@ -153,6 +161,7 @@ The result must run locally from a `.vsix` file and be clean enough to publish t
 6. Setting `{{PREFIX}}.icons.enabledSets` (default: all four).
 
 **Acceptance**
+
 - Search "database", "user" and "docker" across all sets in under 100 ms after the first load. Scrolling the full Tabler grid stays smooth.
 - Insert by click and by drag. Recolor, resize and replace. Undo/Redo each step. Save, close, reopen: everything is intact.
 - Light and dark themes: a default-colored icon looks like a normal stroke in both.
@@ -165,47 +174,44 @@ The result must run locally from a `.vsix` file and be clean enough to publish t
 ## Phase 3: Code blocks
 
 **Tasks**
+
 1. **Dependencies:**
    - `shiki`: use `shiki/core` with `createJavaScriptRegexEngine` (no WASM), and lazy fine-grained imports of languages and themes.
    - CodeMirror 6 (`@codemirror/state`, `@codemirror/view`, `@codemirror/commands`, `@codemirror/language`, `@codemirror/language-data`).
    - `@fontsource/jetbrains-mono` (OFL).
    - First verify that lazy-loaded chunks resolve correctly inside the webview (Vite's `base` versus the webview resource URI). Fix it if needed and tell me what you changed.
-2. **Renderer** `renderCodeBlock(options): Promise<{ dataURL, width, height }>`:
-   - Get tokens from Shiki `codeToTokens`, then draw them on an offscreen canvas with JetBrains Mono (loaded via the `FontFace` API from the bundled woff2) at `scale` (default 3, setting `{{PREFIX}}.codeBlock.renderScale`). Export as **PNG**, because Excalidraw keeps raster images' true colors in dark mode (section 4).
-   - Layout: theme background, 8 px rounded corners, 16 px padding, 1.5 line height.
-   - Optional title bar showing a filename, with optional macOS window dots.
-   - Optional line-number gutter in the theme's muted color.
-   - Highlighted lines get a translucent background that suits the theme.
-   - Bold and italic token styles. Tabs become 2 spaces. No line wrapping.
-   - Warn above 500 lines.
-   - The element's on-canvas size is the canvas size divided by `scale`.
-3. **Editor modal:**
-   - CodeMirror with syntax highlighting, line numbers, bracket matching, auto-closing brackets, Tab to indent. It follows the Excalidraw theme.
-   - Controls: language (searchable; common languages first: JS, TS, JSX, TSX, JSON, HTML, CSS, SCSS, Python, Java, C, C++, C#, Go, Rust, PHP, Ruby, Kotlin, Swift, SQL, Bash, PowerShell, YAML, TOML, Markdown, Dockerfile, GraphQL, Diff, plain text; then any other Shiki language), theme (github-light, github-dark, one-dark-pro, dracula, nord, vitesse-light, vitesse-dark, catppuccin-latte, catppuccin-mocha), font size, line numbers, title, window dots, highlight lines (input like `3, 5-7`).
-   - A live preview of the actual rendered image, debounced.
-   - Save with Ctrl/Cmd+Enter, cancel with Esc. Keystrokes inside the modal never reach Excalidraw. Focus returns to the canvas on close.
-   - Remember the last-used language, theme and options.
-4. **Insert:** a Code button next to the Icons trigger, plus the command `{{PREFIX}}.insertCodeBlock`. The block is inserted at the viewport center and selected.
+2. **Persistent inline code block (updated requirement; no image rendering):**
+   - Store each block as a standard Excalidraw `text` element, with source/options in its `customData`. Do not rasterize code or replace the editor with an image. Legacy image code blocks may be migrated to text when edited.
+   - Keep a borderless, transparent CodeMirror surface visible on the canvas after Done and when focus moves elsewhere. Reopen editing by clicking/double-clicking the block or pressing Enter when selected. Keep the surface visible when saving and reopening a drawing.
+   - Unfocused code surfaces must pass pointer events through to their standard text elements so users can select, move and transform blocks with Excalidraw.
+   - Save source continuously with a short debounce. A click elsewhere flushes the latest source and removes focus without closing the surface. Done flushes and exits editing; Cancel restores the state from when that edit session began.
+   - Show only the language dropdown and icon-only Cancel/Done controls while editing; hide editing controls when unfocused. The persistent CodeMirror surface itself is the visible code block.
+3. **Inline canvas editor (no modal or popup):**
+   - CodeMirror edits directly on the canvas, tracking zoom and scrolling, with syntax highlighting, line numbers, bracket matching, auto-closing brackets and Tab to indent.
+   - The language dropdown lists common languages first (JS, TS, JSX, TSX, JSON, HTML, CSS, SCSS, Python, Java, C, C++, C#, Go, Rust, PHP, Ruby, Kotlin, Swift, SQL, Bash, PowerShell, YAML, TOML, Markdown, Dockerfile, GraphQL, Diff, plain text), then other Shiki languages.
+   - Use the current VS Code theme automatically, not the canvas theme or a separate theme picker. Apply inherited TextMate rules and user color customizations to CodeMirror. Update visible surfaces when VS Code's theme changes.
+   - Finish with Done or Ctrl/Cmd+Enter; cancel with Esc. Editor keystrokes never reach Excalidraw. Done/outside-click removes focus but keeps the surface visible.
+   - Remember the last-used language. Preserve existing saved block options when editing.
+4. **Insert:** a Code button next to the Icons trigger, plus the command `{{PREFIX}}.insertCodeBlock`. The block is inserted at the viewport center.
 5. **Edit:**
-   - Double-click (intercepted before cropping), Enter, or the floating toolbar's Edit button opens the modal with the saved code and options.
-   - Saving re-renders via `replaceImageOfElement`: same element ID, same top-left, new size, undoable.
-   - The floating toolbar also has Copy code, which is available in view-only mode too.
+   - Clicking/focusing, double-clicking, or pressing Enter on a selected code text element starts editing with its saved source/options and current VS Code theme.
+   - Each autosave updates the same standard text element (same ID and position), its version, and the undo stack. Cancel restores the pre-edit element.
    - `customData`: `{ kind: "code-block", v: 1, code, language, theme, fontSize, lineNumbers, title, windowControls, highlightLines, scale }`.
 6. **Settings:**
-   - `{{PREFIX}}.codeBlock.defaultTheme`: default `auto`, meaning github-light on a light canvas and github-dark on a dark canvas at insert time.
+   - Theme follows VS Code automatically; there is no separate code-theme setting or selector.
    - `{{PREFIX}}.codeBlock.defaultLanguage`: `javascript`.
    - `{{PREFIX}}.codeBlock.fontSize`: 16.
    - `{{PREFIX}}.codeBlock.showLineNumbers`: `true`.
    - `{{PREFIX}}.codeBlock.windowControls`: `false`.
 
 **Acceptance**
-- Insert JS, Python, Bash and JSON blocks. Each looks like VS Code's highlighting for its theme, and is crisp at 200% zoom.
-- In a dark canvas, a github-dark block shows true github-dark colors (not inverted).
-- Edit an existing block: the code and options reload, the position is kept, and Undo/Redo works.
-- Copy code copies the exact source.
-- Save, close, reopen: everything is intact. On excalidraw.com the block shows as an image.
-- PNG and SVG exports include the blocks.
-- Typing `a`, `r`, `Delete` or `Ctrl+Z` in the modal never affects the canvas.
+
+- Insert JS, Python, Bash and JSON blocks. Each looks like VS Code's highlighting for its theme and is crisp at 200% zoom.
+- A block uses the current VS Code theme's token colors in the persistent CodeMirror surface.
+- Edit an existing block: source/options reload, position is kept, and Undo/Redo works.
+- Save, close, reopen: the text element and source/options are intact and its editor surface reappears.
+- Code source/options persist in the native text element. The CodeMirror editing surface is extension UI and does not appear in exports or other Excalidraw clients.
+- Typing `a`, `r`, `Delete` or `Ctrl+Z` in the inline editor never affects the canvas.
 - Phase 0 regression checklist passes.
 
 ---
@@ -213,8 +219,9 @@ The result must run locally from a `.vsix` file and be clean enough to publish t
 ## Phase 4: Polish and package
 
 **Tasks**
+
 1. **`THIRD_PARTY_NOTICES.md`**: Excalidraw (MIT), excalidraw-vscode by pomdtr (MIT), Remix Icon (Apache-2.0, include the license text), Feather (MIT), Tabler Icons (MIT), Simple Icons (CC0-1.0, plus a note that brand logos remain their owners' trademarks), Shiki (MIT), CodeMirror (MIT), JetBrains Mono (OFL-1.1), Iconify utils (MIT), and any other bundled dependency. Ship it in the `.vsix`.
-2. **README:** features with screenshot placeholders, settings table, commands, known limitations (sites that refuse framing; VS Code sandbox limits on popups and fullscreen; icons and code blocks are plain images in other Excalidraw editors), and credits. Also a `CHANGELOG.md` entry for `0.1.0`.
+2. **README:** features with screenshot placeholders, settings table, commands, known limitations (sites that refuse framing; VS Code sandbox limits on popups and fullscreen; code block editor surfaces are VS Code-extension UI while their stored text remains portable), and credits. Also a `CHANGELOG.md` entry for `0.1.0`.
 3. **Packaging:**
    - `.vscodeignore` must include `webview/dist` and `dist` and exclude sources, `node_modules` and dev files.
    - Add `npm run package` (`npx @vscode/vsce package`).

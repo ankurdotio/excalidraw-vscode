@@ -30,6 +30,7 @@
         "type": "git",
         "url": "https://github.com/excalidraw/excalidraw-vscode"
     },
+    "main": "./dist/extension-node.js",
     "browser": "./dist/extension.js",
     "contributes": {
         "commands": [
@@ -38,6 +39,24 @@
                 "category": "Excalidraw Studio",
                 "title": "Color Theme",
                 "icon": "$(color-mode)"
+            },
+            {
+                "command": "excalidrawStudio.insertIcon",
+                "category": "Excalidraw Studio",
+                "title": "Insert Icon",
+                "icon": "$(symbol-misc)"
+            },
+            {
+                "command": "excalidrawStudio.insertCodeBlock",
+                "category": "Excalidraw Studio",
+                "title": "Insert Code Block",
+                "icon": "$(code)"
+            },
+            {
+                "command": "excalidrawStudio.insertWebFrame",
+                "category": "Excalidraw Studio",
+                "title": "Insert Web Frame",
+                "icon": "$(globe)"
             },
             {
                 "command": "excalidrawStudio.newFile",
@@ -242,6 +261,61 @@
                             "exportWithBackground": true,
                             "exportWithDarkMode": false
                         }
+                    },
+                    "excalidrawStudio.embeds.allowAllDomains": {
+                        "type": "boolean",
+                        "default": true,
+                        "description": "Allow embedding any HTTP or HTTPS domain."
+                    },
+                    "excalidrawStudio.embeds.allowedDomains": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        },
+                        "default": [],
+                        "description": "Allowed domains when allowAllDomains is false. Entries also allow their subdomains."
+                    },
+                    "excalidrawStudio.embeds.detectBlockedSites": {
+                        "type": "boolean",
+                        "default": true,
+                        "description": "Check websites for headers that prevent embedding (desktop only)."
+                    },
+                    "excalidrawStudio.icons.enabledSets": {
+                        "type": "array",
+                        "items": {
+                          "type": "string",
+                          "enum": ["ri", "feather", "tabler", "simple-icons"]
+                        },
+                        "default": ["ri", "feather", "tabler", "simple-icons"],
+                        "description": "Icon libraries available in the built-in icon panel."
+                    },
+                    "excalidrawStudio.icons.defaultSize": {
+                        "type": "number",
+                        "default": 48,
+                        "enum": [24, 32, 48, 64, 96],
+                        "description": "Default canvas size for newly inserted icons."
+                    },
+                    "excalidrawStudio.codeBlock.defaultLanguage": {
+                        "type": "string",
+                        "default": "javascript",
+                        "description": "Default language for new code blocks."
+                    },
+                    "excalidrawStudio.codeBlock.fontSize": {
+                        "type": "number",
+                        "minimum": 6,
+                        "maximum": 48,
+                        "default": 16,
+                        "description": "Default code-block font size."
+                    },
+                    "excalidrawStudio.codeBlock.showLineNumbers": {
+                        "type": "boolean",
+                        "default": true,
+                        "description": "Show line numbers in new code blocks."
+                    },
+                    "excalidrawStudio.codeBlock.windowControls": {
+                        "type": "boolean",
+                        "default": false,
+                        "description": "Show macOS-style window controls in new code blocks."
                     }
                 }
             }
@@ -263,6 +337,10 @@
                 },
                 {
                     "command": "excalidrawStudio.updateTheme",
+                    "when": "activeCustomEditorId == 'excalidrawStudio.editor'"
+                },
+                {
+                    "command": "excalidrawStudio.insertCodeBlock",
                     "when": "activeCustomEditorId == 'excalidrawStudio.editor'"
                 },
                 {
@@ -348,6 +426,24 @@
         ],
         "keybindings": [
             {
+                "command": "excalidrawStudio.insertIcon",
+                "key": "ctrl+alt+shift+i",
+                "mac": "cmd+alt+shift+i",
+                "when": "activeCustomEditorId == 'excalidrawStudio.editor' && !inputFocus && !terminalFocus"
+            },
+            {
+                "command": "excalidrawStudio.insertWebFrame",
+                "key": "ctrl+alt+shift+w",
+                "mac": "cmd+alt+shift+w",
+                "when": "activeCustomEditorId == 'excalidrawStudio.editor' && !inputFocus && !terminalFocus"
+            },
+            {
+                "command": "excalidrawStudio.insertCodeBlock",
+                "key": "ctrl+alt+shift+c",
+                "mac": "cmd+alt+shift+c",
+                "when": "activeCustomEditorId == 'excalidrawStudio.editor' && !inputFocus && !terminalFocus"
+            },
+            {
                 "command": "excalidrawStudio.preventDefault",
                 "key": "ctrl+z",
                 "mac": "cmd+z",
@@ -364,8 +460,9 @@
     "scripts": {
         "install": "cd webview && npm install",
         "build-webview": "cd webview && npm run build",
-        "build": "npm run build-webview && webpack --mode development",
-        "package": "npm run build-webview && webpack --mode production --devtool hidden-source-map",
+        "build": "npm run build-webview && webpack --mode development && webpack --config webpack.config.node.js --mode development",
+        "package": "npm run build-webview && webpack --mode production --devtool hidden-source-map && webpack --config webpack.config.node.js --mode production --devtool hidden-source-map",
+        "test": "cd webview && npm test",
         "vscode:prepublish": "npm run package",
         "lint": "eslint --ext .ts src",
         "prettier": "prettier --check .",
