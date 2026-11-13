@@ -4,20 +4,35 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
+    "predev": "node scripts/build-icons.mjs",
     "dev": "vite",
+    "prebuild": "node scripts/build-icons.mjs",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
+    "test": "vitest run",
     "preview": "vite preview"
   },
   "dependencies": {
+    "@codemirror/commands": "^6.11.1",
+    "@codemirror/language": "^6.13.1",
+    "@codemirror/language-data": "^6.5.2",
+    "@codemirror/state": "^6.7.6",
+    "@codemirror/view": "^6.43.15",
     "@excalidraw/excalidraw": "^0.18.1",
+    "@fontsource/jetbrains-mono": "^5.3.0",
+    "@iconify/utils": "^3.1.7",
     "js-base64": "^3.7.7",
     "lodash-es": "^4.17.21",
     "react": "^18.2.0",
-    "react-dom": "^18.2.0"
+    "react-dom": "^18.2.0",
+    "shiki": "^4.6.0"
   },
   "devDependencies": {
     "@eslint/js": "^9.21.0",
+    "@iconify-json/feather": "^1.2.1",
+    "@iconify-json/ri": "^1.2.10",
+    "@iconify-json/simple-icons": "^1.2.102",
+    "@iconify-json/tabler": "^1.2.45",
     "@types/lodash-es": "^4.17.12",
     "@types/react": "^18.2.0",
     "@types/react-dom": "^18.2.0",
@@ -28,6 +43,7 @@
     "globals": "^15.15.0",
     "typescript": "~5.7.2",
     "typescript-eslint": "^8.24.1",
-    "vite": "^6.2.0"
+    "vite": "^6.2.0",
+    "vitest": "^5.1.0"
   }
 }

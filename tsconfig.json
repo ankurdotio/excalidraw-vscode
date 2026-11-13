@@ -9,6 +9,8 @@
     "outDir": "out",
     "sourceMap": true,
     "moduleResolution": "node",
+    "resolveJsonModule": true,
+    "esModuleInterop": true,
     "strict": true,
     "rootDir": "src"
   },

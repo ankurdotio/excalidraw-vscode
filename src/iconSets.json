@@ -1,0 +1,30 @@
+{
+  "ri": {
+    "prefix": "ri",
+    "packageName": "@iconify-json/ri",
+    "displayName": "Remix Icon",
+    "license": "Apache-2.0",
+    "style": "fill"
+  },
+  "feather": {
+    "prefix": "feather",
+    "packageName": "@iconify-json/feather",
+    "displayName": "Feather",
+    "license": "MIT",
+    "style": "stroke"
+  },
+  "tabler": {
+    "prefix": "tabler",
+    "packageName": "@iconify-json/tabler",
+    "displayName": "Tabler",
+    "license": "MIT",
+    "style": "stroke"
+  },
+  "simple-icons": {
+    "prefix": "simple-icons",
+    "packageName": "@iconify-json/simple-icons",
+    "displayName": "Simple Icons",
+    "license": "CC0-1.0",
+    "style": "fill"
+  }
+}
