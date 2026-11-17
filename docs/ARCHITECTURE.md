@@ -49,6 +49,7 @@ the filesystem.
 | Webview to host | `embed-check`           | Check remote page headers and metadata in the Node desktop host.                              |
 | Webview to host | `embed-open`            | Open an embed in the external browser or VS Code Simple Browser.                              |
 | Webview to host | `embed-map-url`         | Map remote localhost URLs through `vscode.env.asExternalUri`.                                 |
+| Webview to host | `embed-pick-local-html` | Open the HTML file picker for an editable drawing.                                            |
 | Host to webview | `theme-change`          | Apply an updated theme setting.                                                               |
 | Host to webview | `language-change`       | Apply an updated language setting.                                                            |
 | Host to webview | `image-params-change`   | Apply updated image export settings.                                                          |
@@ -56,6 +57,7 @@ the filesystem.
 | Host to webview | `embed-check-result`    | Return frame policy, title, and favicon metadata.                                             |
 | Host to webview | `embed-settings-change` | Apply updated embed domain and detection settings.                                            |
 | Host to webview | `embed-url-result`      | Return a remote-mapped localhost URL.                                                         |
+| Host to webview | `embed-local-html-selected` | Return the selected local HTML URI for insertion as an embeddable element.                |
 
 ## Settings and initial configuration
 
@@ -80,7 +82,10 @@ webview settings controls do not write those settings directly.
   frame. The Node host uses `src/embedCheck.node.ts` for desktop-only header
   checks, page metadata, redirects, timeout, and session caching; the browser
   build omits this service. `src/editor.ts` handles external/browser actions,
-  configuration updates, and remote localhost mapping.
+  configuration updates, remote localhost mapping, and local HTML selection.
+  Local HTML requires a trusted workspace and a file inside a workspace folder.
+  The host resolves its URI to a webview resource; the iframe runs with scripts
+  but without same-origin access. Drawings retain the file URI, not file contents.
 - **Icons:** add icon search, SVG construction, and panel UI under
   `webview/src/features/icons/`. Keep `App.tsx` changes limited to Excalidraw
   panel/toolbar wiring and add a host command for the active editor.

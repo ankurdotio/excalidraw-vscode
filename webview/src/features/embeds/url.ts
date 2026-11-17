@@ -1,4 +1,5 @@
 import type { EmbedSettings } from "../../../../src/embedTypes";
+import { isLocalHtmlUri } from "../../../../src/localHtmlUri";
 
 const EXCALIDRAW_EMBED_DOMAINS = [
   "youtube.com",
@@ -50,7 +51,11 @@ export function isLoopbackUrl(value: string): boolean {
 
 export function getEmbedDisplayHost(value: string): string {
   try {
-    return new URL(value).hostname;
+    const url = new URL(value);
+    if (isLocalHtmlUri(value)) {
+      return decodeURIComponent(url.pathname.split("/").pop() || value);
+    }
+    return url.hostname || value;
   } catch {
     return value || "Embedded page";
   }
@@ -60,6 +65,9 @@ export function validateEmbeddable(
   value: string,
   settings: Pick<EmbedSettings, "allowAllDomains" | "allowedDomains">
 ): boolean {
+  if (isLocalHtmlUri(value)) {
+    return true;
+  }
   try {
     const url = new URL(value);
     if (url.protocol !== "http:" && url.protocol !== "https:") {

@@ -8,14 +8,23 @@ At the user's request, the icon, web-frame, and code-block implementations were
 committed separately, with shared integration in the code-block commit. Pending
 manual checks still prevent phase sign-off.
 
+The current Marketplace ID is `ankurdotio.excalidraw-studio` and display name
+is `ex+`; command and settings prefixes and the editor view type remain
+unchanged for compatibility.
+Manual confirmation of the rename is pending.
+
+Local HTML embeds: the HTML picker, trusted-workspace validation, isolated
+preview, and save/reopen behavior have automated checks; VS Code UI confirmation
+is pending.
+
 ## Phase 0: Set up the fork
 
 - [x] Add the original repository as the `upstream` remote.
 - [x] Run `npm install` and `npm run build` before changing source.
 - [x] Launch the Extension Development Host and confirm the editor works
       visually (user confirmed the manual F5 checks passed).
-- [x] Rename extension identity to Excalidraw Studio / `excalidraw-studio` /
-      `your-publisher-id` / `excalidrawStudio`.
+- [x] Rename extension identity to ex+ / `excalidraw-studio` / `ankurdotio` /
+      `excalidrawStudio`.
 - [x] Rename custom editor view type, commands, setting keys, library-return
       URL, export source, URI-handler class, and contribution labels.
 - [x] Preserve associations for `.excalidraw`, `.excalidraw.json`,

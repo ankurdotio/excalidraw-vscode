@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useState, useRef } from "react";
 import {
   CaptureUpdateAction,
+  convertToExcalidrawElements,
   Excalidraw,
   loadLibraryFromBlob,
   newElementWith,
   serializeLibraryAsJSON,
   THEME,
+  viewportCoordsToSceneCoords,
 } from "@excalidraw/excalidraw";
 
 import "@excalidraw/excalidraw/index.css";
@@ -36,6 +38,7 @@ import {
 } from "./features/embeds/url";
 import { useIconLibrary } from "./features/icons/useIconLibrary";
 import { useCodeBlocks } from "./features/code-blocks/useCodeBlocks";
+import { isLocalHtmlUri } from "../../src/localHtmlUri";
 
 function detectTheme() {
   switch (document.body.className) {
@@ -206,6 +209,46 @@ export default function App(props: {
             setEmbedChecks({});
             break;
           }
+          case "embed-local-html-selected": {
+            if (
+              props.viewModeEnabled ||
+              !excalidrawAPI ||
+              typeof message.url !== "string" ||
+              !isLocalHtmlUri(message.url)
+            ) {
+              throw new Error("Unable to insert the selected local HTML file.");
+            }
+            const state = excalidrawAPI.getAppState();
+            const center = viewportCoordsToSceneCoords(
+              {
+                clientX: state.offsetLeft + state.width / 2,
+                clientY: state.offsetTop + state.height / 2,
+              },
+              state
+            );
+            const [base] = convertToExcalidrawElements([
+              {
+                type: "rectangle",
+                x: center.x - 280,
+                y: center.y - 210,
+                width: 560,
+                height: 420,
+                strokeColor: "transparent",
+                backgroundColor: "transparent",
+              },
+            ]);
+            if (!base || base.type !== "rectangle") {
+              throw new Error("Unable to create the local HTML frame.");
+            }
+            excalidrawAPI.updateScene({
+              elements: [
+                ...excalidrawAPI.getSceneElementsIncludingDeleted(),
+                { ...base, type: "embeddable", link: message.url },
+              ],
+              captureUpdate: CaptureUpdateAction.IMMEDIATELY,
+            });
+            break;
+          }
           case "embed-check-result": {
             const result = message.result as EmbedCheckResult;
             setEmbedChecks((current) => ({ ...current, [result.url]: result }));
@@ -253,16 +296,23 @@ export default function App(props: {
     vscode.postMessage({ type: "embed-check", url });
   }, []);
 
-  const requestEmbedMap = useCallback((url: string) => {
-    if (requestedEmbedMaps.current.has(url)) {
+  const requestEmbedMap = useCallback((url: string, retry = false) => {
+    if (!retry && requestedEmbedMaps.current.has(url)) {
       return;
+    }
+    if (retry) {
+      setEmbedMapErrors((current) => {
+        const next = { ...current };
+        delete next[url];
+        return next;
+      });
     }
     requestedEmbedMaps.current.add(url);
     vscode.postMessage({ type: "embed-map-url", url });
   }, []);
 
   const openEmbed = useCallback(
-    (action: "external" | "simple-browser", url: string) => {
+    (action: "external" | "simple-browser" | "local-file", url: string) => {
       vscode.postMessage({ type: "embed-open", action, url });
     },
     []
@@ -323,7 +373,7 @@ export default function App(props: {
           scrollToContent: true,
         }}
         libraryReturnUrl={
-          "vscode://your-publisher-id.excalidraw-studio/importLib"
+          "vscode://ankurdotio.excalidraw-studio/importLib"
         }
         onChange={(elements, appState, files) =>
           props.onChange(
@@ -360,6 +410,18 @@ export default function App(props: {
           <>
             {icons.trigger}
             {codeBlocks.trigger}
+            {!props.viewModeEnabled && (
+              <button
+                type="button"
+                className="studio-code-trigger"
+                title="Embed local HTML file"
+                onClick={() =>
+                  vscode.postMessage({ type: "embed-pick-local-html" })
+                }
+              >
+                HTML
+              </button>
+            )}
           </>
         )}
         onLinkOpen={(element, event) => {

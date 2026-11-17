@@ -7,6 +7,7 @@ import { ExcalidrawDocument } from "./document";
 import { languageMap } from "./lang";
 import { showEditor } from "./commands";
 import type { EmbedHostServices, EmbedSettings } from "./embedTypes";
+import { isLocalHtmlUri } from "./localHtmlUri";
 import { clearActiveIconPanel, setActiveIconPanel } from "./iconPanelCommand";
 import {
   clearActiveCodeBlockEditor,
@@ -71,7 +72,7 @@ export class ExcalidrawEditorProvider
           type: "excalidrawlib",
           version: 2,
           source:
-            "https://marketplace.visualstudio.com/items?itemName=your-publisher-id.excalidraw-studio",
+            "https://marketplace.visualstudio.com/items?itemName=ankurdotio.excalidraw-studio",
           libraryItems,
         })
       )
@@ -270,6 +271,9 @@ export class ExcalidrawEditor {
             break;
           case "embed-map-url":
             await this.handleEmbedMapUrl(msg.url);
+            break;
+          case "embed-pick-local-html":
+            await this.pickLocalHtml();
             break;
           case "icon-preferences-change": {
             const preferences = this.normalizeIconPreferences(msg.preferences);
@@ -667,6 +671,12 @@ export class ExcalidrawEditor {
 
   private async handleEmbedOpen(action: string, value: string) {
     try {
+      if (action === "local-file") {
+        await vscode.window.showTextDocument(
+          await this.resolveLocalHtml(value)
+        );
+        return;
+      }
       const url = new URL(value);
       if (url.protocol !== "http:" && url.protocol !== "https:") {
         throw new Error("Only HTTP and HTTPS links can be opened from embeds.");
@@ -695,6 +705,15 @@ export class ExcalidrawEditor {
 
   private async handleEmbedMapUrl(value: string) {
     try {
+      if (isLocalHtmlUri(value)) {
+        const uri = await this.resolveLocalHtml(value);
+        await this.webview.postMessage({
+          type: "embed-url-result",
+          url: value,
+          mappedUrl: this.webview.asWebviewUri(uri).toString(),
+        });
+        return;
+      }
       const url = new URL(value);
       if (url.protocol !== "http:" && url.protocol !== "https:") {
         throw new Error("Only HTTP and HTTPS embed URLs can be mapped.");
@@ -720,6 +739,63 @@ export class ExcalidrawEditor {
         url: value,
         error: error instanceof Error ? error.message : String(error),
       });
+    }
+  }
+
+  private async resolveLocalHtml(value: string): Promise<vscode.Uri> {
+    if (!vscode.workspace.isTrusted) {
+      throw new Error("Trust this workspace before embedding local HTML.");
+    }
+    if (!isLocalHtmlUri(value)) {
+      throw new Error("Select a local .html or .htm file.");
+    }
+    const uri = vscode.Uri.parse(value);
+    if (
+      uri.path.includes("\\") ||
+      path.posix.normalize(uri.path) !== uri.path ||
+      !vscode.workspace.getWorkspaceFolder(uri)
+    ) {
+      throw new Error("The HTML file must be inside an open workspace folder.");
+    }
+    const stat = await vscode.workspace.fs.stat(uri);
+    if (
+      !(stat.type & vscode.FileType.File) ||
+      stat.type & vscode.FileType.SymbolicLink
+    ) {
+      throw new Error("The selected HTML path is not a file.");
+    }
+    return uri;
+  }
+
+  private async pickLocalHtml() {
+    if (this.isViewOnly()) {
+      return;
+    }
+    try {
+      if (!vscode.workspace.isTrusted) {
+        throw new Error("Trust this workspace before embedding local HTML.");
+      }
+      const selected = await vscode.window.showOpenDialog({
+        canSelectMany: false,
+        canSelectFolders: false,
+        filters: { "HTML files": ["html", "htm"] },
+        openLabel: "Embed HTML",
+        defaultUri: vscode.workspace.getWorkspaceFolder(this.document.uri)?.uri,
+      });
+      if (!selected?.[0]) {
+        return;
+      }
+      const uri = await this.resolveLocalHtml(selected[0].toString());
+      await this.webview.postMessage({
+        type: "embed-local-html-selected",
+        url: uri.toString(),
+      });
+    } catch (error) {
+      await vscode.window.showErrorMessage(
+        `Unable to embed local HTML: ${
+          error instanceof Error ? error.message : String(error)
+        }`
+      );
     }
   }
 

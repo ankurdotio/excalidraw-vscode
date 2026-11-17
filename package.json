@@ -1,10 +1,10 @@
 {
     "name": "excalidraw-studio",
     "icon": "assets/logo.png",
-    "displayName": "Excalidraw Studio",
+    "displayName": "ex+",
     "description": "Draw schemas in VS Code using Excalidraw",
     "version": "3.9.3",
-    "publisher": "your-publisher-id",
+    "publisher": "ankurdotio",
     "engines": {
         "vscode": "^1.63.0"
     },
@@ -36,55 +36,55 @@
         "commands": [
             {
                 "command": "excalidrawStudio.updateTheme",
-                "category": "Excalidraw Studio",
+                "category": "ex+",
                 "title": "Color Theme",
                 "icon": "$(color-mode)"
             },
             {
                 "command": "excalidrawStudio.insertIcon",
-                "category": "Excalidraw Studio",
+                "category": "ex+",
                 "title": "Insert Icon",
                 "icon": "$(symbol-misc)"
             },
             {
                 "command": "excalidrawStudio.insertCodeBlock",
-                "category": "Excalidraw Studio",
+                "category": "ex+",
                 "title": "Insert Code Block",
                 "icon": "$(code)"
             },
             {
                 "command": "excalidrawStudio.insertWebFrame",
-                "category": "Excalidraw Studio",
+                "category": "ex+",
                 "title": "Insert Web Frame",
                 "icon": "$(globe)"
             },
             {
                 "command": "excalidrawStudio.newFile",
-                "category": "Excalidraw Studio",
+                "category": "ex+",
                 "title": "Scene",
                 "icon": "$(color-mode)"
             },
             {
                 "command": "excalidrawStudio.newSceneFile",
-                "category": "Excalidraw Studio",
+                "category": "ex+",
                 "title": "New File",
                 "icon": "$(color-mode)"
             },
             {
                 "command": "excalidrawStudio.preventDefault",
-                "category": "Excalidraw Studio",
+                "category": "ex+",
                 "title": "Prevent Default"
             },
             {
                 "command": "excalidrawStudio.showSource",
-                "category": "Excalidraw Studio",
+                "category": "ex+",
                 "title": "Open Source",
                 "icon": "$(go-to-file)"
             },
             {
                 "command": "excalidrawStudio.showEditor",
-                "category": "Excalidraw Studio",
-                "title": "Open Excalidraw Studio",
+                "category": "ex+",
+                "title": "Open ex+",
                 "icon": {
                     "dark": "./assets/menu-icon-dark.png",
                     "light": "./assets/menu-icon-light.png"
@@ -92,20 +92,20 @@
             },
             {
                 "command": "excalidrawStudio.showImage",
-                "category": "Excalidraw Studio",
+                "category": "ex+",
                 "title": "Open Image",
                 "icon": "$(go-to-file)"
             },
             {
                 "command": "excalidrawStudio.showSourceToSide",
-                "category": "Excalidraw Studio",
+                "category": "ex+",
                 "title": "Open Source to the Side",
                 "icon": "$(go-to-file)"
             },
             {
                 "command": "excalidrawStudio.showEditorToSide",
-                "category": "Excalidraw Studio",
-                "title": "Open Excalidraw Studio to the Side",
+                "category": "ex+",
+                "title": "Open ex+ to the Side",
                 "icon": {
                     "dark": "./assets/menu-icon-dark.png",
                     "light": "./assets/menu-icon-light.png"
@@ -113,14 +113,14 @@
             },
             {
                 "command": "excalidrawStudio.showImageToSide",
-                "category": "Excalidraw Studio",
+                "category": "ex+",
                 "title": "Open Image to the Side",
                 "icon": "$(go-to-file)"
             }
         ],
         "configuration": [
             {
-                "title": "Excalidraw Studio",
+                "title": "ex+",
                 "properties": {
                     "excalidrawStudio.theme": {
                         "description": "Excalidraw theme. Use auto to sync theme with VSCode color theme.",
@@ -406,7 +406,7 @@
         "customEditors": [
             {
                 "viewType": "excalidrawStudio.editor",
-                "displayName": "Excalidraw Studio",
+                "displayName": "ex+",
                 "priority": "default",
                 "selector": [
                     {

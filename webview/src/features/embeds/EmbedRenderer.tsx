@@ -12,6 +12,7 @@ import type {
 import { getEmbedDisplayHost, isLoopbackUrl, validateEmbeddable } from "./url";
 import { LinkCard } from "./LinkCard";
 import { WebFrame } from "./WebFrame";
+import { isLocalHtmlUri } from "../../../../src/localHtmlUri";
 
 export function EmbedRenderer(props: {
   element: NonDeleted<ExcalidrawEmbeddableElement>;
@@ -23,8 +24,11 @@ export function EmbedRenderer(props: {
   mapError?: string;
   viewOnly: boolean;
   requestCheck: (url: string) => void;
-  requestMap: (url: string) => void;
-  onOpen: (action: "external" | "simple-browser", url: string) => void;
+  requestMap: (url: string, retry?: boolean) => void;
+  onOpen: (
+    action: "external" | "simple-browser" | "local-file",
+    url: string
+  ) => void;
   onSetMode: (id: string, mode: EmbedMode) => void;
 }) {
   const {
@@ -42,6 +46,7 @@ export function EmbedRenderer(props: {
     viewOnly,
   } = props;
   const url = element.link ?? "";
+  const isLocal = isLocalHtmlUri(url);
   const embedMode = element.customData?.embedMode as EmbedMode | undefined;
   const isAllowed = validateEmbeddable(url, settings);
   const needsRemoteMapping = remoteSession && isLoopbackUrl(url);
@@ -49,6 +54,7 @@ export function EmbedRenderer(props: {
   useEffect(() => {
     if (
       isAllowed &&
+      !isLocal &&
       checkAvailable &&
       settings.detectBlockedSites &&
       !checkResult
@@ -57,6 +63,7 @@ export function EmbedRenderer(props: {
     }
   }, [
     isAllowed,
+    isLocal,
     checkAvailable,
     checkResult,
     requestCheck,
@@ -65,14 +72,49 @@ export function EmbedRenderer(props: {
   ]);
 
   useEffect(() => {
-    if (needsRemoteMapping && !mappedUrl && !mapError) {
+    if ((needsRemoteMapping || isLocal) && !mappedUrl && !mapError) {
       requestMap(url);
     }
-  }, [needsRemoteMapping, mappedUrl, mapError, requestMap, url]);
+  }, [needsRemoteMapping, isLocal, mappedUrl, mapError, requestMap, url]);
 
   const setMode = (mode: EmbedMode) => onSetMode(element.id, mode);
   const open = (action: "external" | "simple-browser", targetUrl: string) =>
     onOpen(action, targetUrl);
+
+  if (isLocal) {
+    if (mapError) {
+      return (
+        <div className="studio-embed-card">
+          <div className="studio-embed-card__title">
+            Unable to load local HTML
+          </div>
+          <div className="studio-embed-card__url">{url}</div>
+          <div>{mapError}</div>
+          <button
+            type="button"
+            className="studio-embed__button"
+            onClick={() => requestMap(url, true)}
+          >
+            Retry
+          </button>
+        </div>
+      );
+    }
+    if (!mappedUrl) {
+      return (
+        <div className="studio-embed-frame__status">Loading local HTML…</div>
+      );
+    }
+    return (
+      <WebFrame
+        url={mappedUrl}
+        title={getEmbedDisplayHost(url)}
+        local
+        sourceUrl={url}
+        onOpen={onOpen}
+      />
+    );
+  }
 
   if (!isAllowed) {
     return (
@@ -86,7 +128,7 @@ export function EmbedRenderer(props: {
         }}
         viewOnly={viewOnly}
         allowTryFrame={false}
-        onOpen={open}
+        onOpen={onOpen}
         onSetMode={setMode}
       />
     );
@@ -119,7 +161,7 @@ export function EmbedRenderer(props: {
     <WebFrame
       url={mappedUrl ?? url}
       title={checkResult?.title || getEmbedDisplayHost(url)}
-      onOpen={open}
+      onOpen={onOpen}
       onShowCard={() => setMode("card")}
       showCardAction={!viewOnly}
       status={

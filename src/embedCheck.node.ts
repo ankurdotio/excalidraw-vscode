@@ -51,7 +51,7 @@ function loadPage(
       headers: {
         Accept: "text/html,application/xhtml+xml",
         "Accept-Encoding": "identity",
-        "User-Agent": "Excalidraw Studio embed check",
+        "User-Agent": "ex+ embed check",
       },
     };
 

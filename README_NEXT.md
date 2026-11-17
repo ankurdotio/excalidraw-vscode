@@ -1,4 +1,4 @@
-# Excalidraw Studio
+# ex+
 
 Based on excalidraw-vscode by pomdtr (MIT).
 
@@ -29,7 +29,7 @@ Update the document extension to the desired format. For example, `document.exca
 By default, this extension handles `*.excalidraw`, `*.excalidraw.json`,
 `*.excalidraw.svg`, and `*.excalidraw.png` files. Choose **Open With...** on a
 matching file, then **Configure default editor for...**, and select
-**Excalidraw Studio** to make it the default.
+**ex+** to make it the default.
 
 Add this to your VS Code settings.json file if you want to associate it with additional file extensions (ex: SVG):
 

@@ -1,4 +1,4 @@
-# Excalidraw Studio
+# ex+
 
 Based on excalidraw-vscode by pomdtr (MIT).
 
@@ -36,6 +36,19 @@ Keyboard Shortcuts):
 
 The web-frame shortcut selects the embed tool; draw a frame and enter its URL.
 Shortcuts apply to the drawing canvas, not while typing in an inline code block.
+
+### Embed local HTML
+
+Open a trusted workspace containing the HTML file, open a drawing, then click
+**HTML** above the canvas and choose a `.html` or `.htm` file inside a workspace
+folder. Double-click the frame to interact with it; hover for **Reload** and
+**Open file**. Reload after editing the HTML.
+
+The drawing stores a reference to the file, not its contents, so moving the
+file or opening the drawing on another machine can break the embed. Local pages
+run in a sandbox without same-origin access, forms, or popups; some scripts,
+module imports, and other features may not work. The frame is an editor-only
+preview and is not included in image exports or other Excalidraw clients.
 
 ### Edit Images
 
@@ -88,9 +101,9 @@ You can switch between the Excalidraw editor and the source (text or image) usin
 By default, this extension handles `*.excalidraw`, `*.excalidraw.json`,
 `*.excalidraw.svg`, and `*.excalidraw.png` files. It can be installed alongside
 the original extension because it has a distinct extension identifier. To use
-Excalidraw Studio as the default editor, right-click a matching file, select
+ex+ as the default editor, right-click a matching file, select
 **Open With...**, then **Configure default editor for...** and choose
-**Excalidraw Studio**. You can also set the associations directly:
+**ex+**. You can also set the associations directly:
 
 ```json
 {
@@ -102,6 +115,9 @@ Excalidraw Studio as the default editor, right-click a matching file, select
   }
 }
 ```
+
+The existing `excalidrawStudio` command and settings prefix and editor view
+type remain unchanged for compatibility.
 
 Add this to your VS Code `settings.json` file if you want to associate it with additional file extensions (ex: SVG):
 

@@ -117,7 +117,7 @@ export function registerCommands(context: vscode.ExtensionContext) {
       const toggled = await toggleActiveIconPanel();
       if (!toggled) {
         await vscode.window.showInformationMessage(
-          "Open an editable Excalidraw Studio drawing to use the icon library."
+          "Open an editable ex+ drawing to use the icon library."
         );
       }
     })
@@ -129,7 +129,7 @@ export function registerCommands(context: vscode.ExtensionContext) {
         const opened = await openCodeBlockEditor();
         if (!opened) {
           await vscode.window.showInformationMessage(
-            "Open an editable Excalidraw Studio drawing to insert a code block."
+            "Open an editable ex+ drawing to insert a code block."
           );
         }
       }
@@ -142,7 +142,7 @@ export function registerCommands(context: vscode.ExtensionContext) {
         const opened = await activateWebFrameTool();
         if (!opened) {
           await vscode.window.showInformationMessage(
-            "Open an editable Excalidraw Studio drawing to insert a web frame."
+            "Open an editable ex+ drawing to insert a web frame."
           );
         }
       }

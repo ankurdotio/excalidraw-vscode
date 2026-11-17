@@ -4,9 +4,9 @@
 
 | Placeholder        | Working default     | Used for                                                                  |
 | ------------------ | ------------------- | ------------------------------------------------------------------------- |
-| `{{DISPLAY_NAME}}` | `Excalidraw Studio` | Marketplace display name (check it's free before publishing)              |
+| `{{DISPLAY_NAME}}` | `ex+`               | Marketplace display name (check it's free before publishing)              |
 | `{{EXT_NAME}}`     | `excalidraw-studio` | `package.json` `name`                                                     |
-| `{{PUBLISHER}}`    | `your-publisher-id` | `package.json` `publisher`                                                |
+| `{{PUBLISHER}}`    | `ankurdotio`        | `package.json` `publisher`                                                |
 | `{{PREFIX}}`       | `excalidrawStudio`  | Prefix for every command ID, setting key and the custom editor `viewType` |
 
 ---
@@ -41,7 +41,7 @@ The result must run locally from a `.vsix` file and be clean enough to publish t
 - **Keep the Excalidraw UX.** Additions must look native. Use Excalidraw's own components (`Sidebar`, `MainMenu`, `Footer`, `renderTopRightUI`) and its CSS variables and "island" styling. They must work in light and dark themes.
 - **Public API only.** Use only the props, `excalidrawAPI` methods and exported helpers of `@excalidraw/excalidraw`. No editing `node_modules`, no `patch-package`, no copying Excalidraw internals.
 - **Keep files compatible.** No new element types. Icons are standard `image` elements, code blocks are standard `text` elements, and embeds are standard `embeddable` elements. Store extra data only in the element's `customData`. Files must still open on excalidraw.com; code blocks use native Excalidraw text there.
-- **Offline.** No CDN or runtime downloads for app code, fonts, icons, grammars or themes. Everything is bundled. The only network traffic allowed is the embedded website itself and the frame-blocking check in Phase 1.
+- **Offline.** No CDN or runtime downloads for app code, fonts, icons, grammars or themes. Everything is bundled. Network traffic may come from embedded pages and the frame-blocking check in Phase 1.
 - **Keep the web build working.** The extension currently runs in vscode.dev. Features that need Node.js must degrade gracefully there.
 - **View-only mode** (the extension's `isViewOnly()`, for example git diffs) hides all insert and edit UI.
 - **Every programmatic scene change must save and undo correctly.** Use `excalidrawAPI.updateScene({ ..., captureUpdate: CaptureUpdateAction.IMMEDIATELY })` so it joins the undo stack, and make sure the changed element's `version` increases. The webview only sends changes to VS Code when `hashElementsVersion(elements)` changes (see `main.tsx`), so an edit that doesn't bump a version will never mark the file dirty or save.
@@ -100,7 +100,7 @@ The result must run locally from a `.vsix` file and be clean enough to publish t
    - `{{PREFIX}}.embeds.allowAllDomains` (boolean, default `true`): any `http`/`https` URL is allowed.
    - `{{PREFIX}}.embeds.allowedDomains` (string array): used when the above is `false`.
    - `localhost`, `127.0.0.1` and `[::1]` (any port) are always allowed.
-   - Always reject `javascript:`, `data:`, `file:`, `vscode:` and other non-web schemes.
+   - Reject `javascript:`, `data:`, `vscode:` and other non-web schemes, except local HTML file references that are validated against a trusted workspace by the extension host.
 3. **`renderEmbeddable`**:
    - For URLs Excalidraw already handles (its provider list in section 4), return `null` to keep its built-in behavior.
    - For everything else, render a `WebFrame` component: an `<iframe>` with scrolling enabled; sandbox `allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox allow-presentation allow-downloads`; the same `allow` list Excalidraw uses; and `referrerPolicy="strict-origin-when-cross-origin"`.

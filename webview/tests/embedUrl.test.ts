@@ -5,6 +5,7 @@ import {
   isLoopbackUrl,
   validateEmbeddable,
 } from "../src/features/embeds/url";
+import { isLocalHtmlUri } from "../../src/localHtmlUri";
 
 describe("validateEmbeddable", () => {
   it("allows web URLs when all domains are enabled", () => {
@@ -26,7 +27,7 @@ describe("validateEmbeddable", () => {
     for (const url of [
       "javascript:alert(1)",
       "data:text/html,hi",
-      "file:///tmp/test.html",
+      "file:///tmp/test.svg",
       "vscode://settings",
       "ftp://example.com",
       "not a URL",
@@ -38,6 +39,25 @@ describe("validateEmbeddable", () => {
         })
       ).toBe(false);
     }
+  });
+
+  it("accepts local HTML references for host-side workspace validation", () => {
+    const settings = { allowAllDomains: false, allowedDomains: [] };
+    expect(
+      validateEmbeddable("file:///workspace/my%20page.html", settings)
+    ).toBe(true);
+    expect(
+      validateEmbeddable(
+        "vscode-remote://ssh-remote+host/project/index.htm",
+        settings
+      )
+    ).toBe(true);
+    expect(validateEmbeddable("file:///workspace/secrets.txt", settings)).toBe(
+      false
+    );
+    expect(
+      validateEmbeddable("file:///workspace/index.html?x=1", settings)
+    ).toBe(false);
   });
 
   it("always allows loopback hosts when domain access is restricted", () => {
@@ -53,6 +73,25 @@ describe("validateEmbeddable", () => {
         })
       ).toBe(true);
     }
+  });
+
+  describe("isLocalHtmlUri", () => {
+    it("only identifies supported local HTML file URIs", () => {
+      expect(isLocalHtmlUri("file:///project/INDEX.HTML")).toBe(true);
+      expect(
+        isLocalHtmlUri("vscode-remote://ssh-remote+host/project/a.htm")
+      ).toBe(true);
+      for (const value of [
+        "https://example.com/index.html",
+        "file:///project/index.html#fragment",
+        "file:///project/index.html?query",
+        "file:///project/index.html.js",
+        "javascript:alert(1)",
+        "not a URL",
+      ]) {
+        expect(isLocalHtmlUri(value)).toBe(false);
+      }
+    });
   });
 
   it("matches configured hosts and subdomains without suffix confusion", () => {
@@ -80,6 +119,12 @@ describe("getEmbedDisplayHost", () => {
   it("uses a safe fallback for invalid URLs", () => {
     expect(getEmbedDisplayHost("https://react.dev/learn")).toBe("react.dev");
     expect(getEmbedDisplayHost("not a URL")).toBe("not a URL");
+    expect(getEmbedDisplayHost("file:///workspace/my%20page.html")).toBe(
+      "my page.html"
+    );
+    expect(
+      getEmbedDisplayHost("vscode-remote://ssh-remote+host/project/index.htm")
+    ).toBe("index.htm");
   });
 });
 

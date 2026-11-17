@@ -107,7 +107,7 @@ Manual confirmation (pending):
    [`examples/test.excalidraw`](../examples/test.excalidraw), and use
    **File > Save As** to create `examples/icons-test.excalidraw`. Use that copy
    for these checks.
-2. Run **Excalidraw Studio: Color Theme**, choose **Dark**, then click
+2. Run **ex+: Color Theme**, choose **Dark**, then click
    **Icons**. Keep the default color and insert an icon. Expected: previews
    are light and readable like the placed icon; no broken-image symbols or
    blank canvas.
@@ -205,3 +205,43 @@ Manual confirmation (pending):
    the web-frame tool is selected; drag a rectangle and enter a URL.
 4. Click the canvas and press **Cmd+Option+Shift+C** (elsewhere
    **Ctrl+Alt+Shift+C**). Expected: a code block opens on the canvas.
+
+## ex+ branding
+
+Manual confirmation (pending):
+
+1. Press **F5**, choose **Launch extension (desktop)**, then right-click
+   [`examples/test.excalidraw`](../examples/test.excalidraw) and choose
+   **Open With...**. Expected: **ex+** is an available editor and opens the
+   drawing.
+2. Open the Command Palette and run **Developer: Show Running Extensions**.
+   Expected: the active extension is named **ex+**.
+3. Open the Command Palette and type `ex+`. Expected: **ex+: Color Theme**
+   and the insert commands appear. Press Escape without changing settings.
+4. Open **Preferences: Open Settings (UI)** and search
+   `@ext:ankurdotio.excalidraw-studio`. Expected: the settings are
+   grouped under **ex+** and retain their `excalidrawStudio` keys.
+
+## Local HTML embeds
+
+Manual confirmation (pending):
+
+1. In a trusted workspace, create `examples/local-embed.html` containing
+   `<h1>Local HTML</h1><script>document.body.append(" script works")</script>`.
+   Press **F5**, choose **Launch extension (desktop)**, open
+   [`examples/test.excalidraw`](../examples/test.excalidraw), then use **File >
+   Save As** to save a disposable `examples/local-embed-test.excalidraw`.
+2. Click **HTML** above the canvas and select `examples/local-embed.html`.
+   Expected: a movable, resizable frame displays “Local HTML script works”.
+3. Double-click the frame, hover it, and click **Open file**. Expected: the
+   HTML file opens in VS Code. Edit its heading, save it, return to the
+   drawing, and click **Reload**. Expected: the updated heading appears.
+4. Undo and redo the insertion, then save, close, and reopen
+   `examples/local-embed-test.excalidraw`. Expected: undo/redo work and the
+   local page reappears after reopening.
+5. Rename `examples/local-embed.html` and reopen the drawing. Expected: the
+   frame reports the missing file. Restore the filename, double-click the
+   frame, and click **Retry**. Expected: the page loads again.
+6. Try selecting an HTML file outside every workspace folder. Expected: an
+   error explains that the file must be inside an open workspace folder.
+   Existing web embeds should continue to work.
