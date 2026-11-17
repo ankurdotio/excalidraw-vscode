@@ -21,6 +21,7 @@ export function EmbedRenderer(props: {
   remoteSession: boolean;
   checkResult?: EmbedCheckResult;
   mappedUrl?: string;
+  localHtml?: string;
   mapError?: string;
   viewOnly: boolean;
   requestCheck: (url: string) => void;
@@ -35,6 +36,7 @@ export function EmbedRenderer(props: {
     checkAvailable,
     checkResult,
     element,
+    localHtml,
     mapError,
     mappedUrl,
     onOpen,
@@ -72,10 +74,19 @@ export function EmbedRenderer(props: {
   ]);
 
   useEffect(() => {
-    if ((needsRemoteMapping || isLocal) && !mappedUrl && !mapError) {
+    const missing = isLocal ? localHtml === undefined : !mappedUrl;
+    if ((needsRemoteMapping || isLocal) && missing && !mapError) {
       requestMap(url);
     }
-  }, [needsRemoteMapping, isLocal, mappedUrl, mapError, requestMap, url]);
+  }, [
+    needsRemoteMapping,
+    isLocal,
+    localHtml,
+    mappedUrl,
+    mapError,
+    requestMap,
+    url,
+  ]);
 
   const setMode = (mode: EmbedMode) => onSetMode(element.id, mode);
   const open = (action: "external" | "simple-browser", targetUrl: string) =>
@@ -100,17 +111,18 @@ export function EmbedRenderer(props: {
         </div>
       );
     }
-    if (!mappedUrl) {
+    if (localHtml === undefined) {
       return (
         <div className="studio-embed-frame__status">Loading local HTML…</div>
       );
     }
     return (
       <WebFrame
-        url={mappedUrl}
+        url={url}
         title={getEmbedDisplayHost(url)}
         local
-        sourceUrl={url}
+        html={localHtml}
+        onReload={() => requestMap(url, true)}
         onOpen={onOpen}
       />
     );

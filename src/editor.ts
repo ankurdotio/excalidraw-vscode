@@ -7,7 +7,10 @@ import { ExcalidrawDocument } from "./document";
 import { languageMap } from "./lang";
 import { showEditor } from "./commands";
 import type { EmbedHostServices, EmbedSettings } from "./embedTypes";
-import { isLocalHtmlUri } from "./localHtmlUri";
+import { isLocalHtmlUri, toLocalHtmlUri } from "./localHtmlUri";
+import { inlineLocalHtml } from "./localHtmlDocument";
+
+const MAX_LOCAL_HTML_BYTES = 10 * 1024 * 1024;
 import { clearActiveIconPanel, setActiveIconPanel } from "./iconPanelCommand";
 import {
   clearActiveCodeBlockEditor,
@@ -271,9 +274,6 @@ export class ExcalidrawEditor {
             break;
           case "embed-map-url":
             await this.handleEmbedMapUrl(msg.url);
-            break;
-          case "embed-pick-local-html":
-            await this.pickLocalHtml();
             break;
           case "icon-preferences-change": {
             const preferences = this.normalizeIconPreferences(msg.preferences);
@@ -706,11 +706,18 @@ export class ExcalidrawEditor {
   private async handleEmbedMapUrl(value: string) {
     try {
       if (isLocalHtmlUri(value)) {
+        // Webview resource URLs are not served to nested iframe navigations,
+        // so local HTML is rendered through srcdoc with relative assets inlined.
         const uri = await this.resolveLocalHtml(value);
+        const html = await inlineLocalHtml(
+          this.textDecoder.decode(await vscode.workspace.fs.readFile(uri)),
+          uri.toString(),
+          (resolvedUrl) => this.readLocalHtmlResource(resolvedUrl, uri)
+        );
         await this.webview.postMessage({
           type: "embed-url-result",
           url: value,
-          mappedUrl: this.webview.asWebviewUri(uri).toString(),
+          html,
         });
         return;
       }
@@ -746,10 +753,18 @@ export class ExcalidrawEditor {
     if (!vscode.workspace.isTrusted) {
       throw new Error("Trust this workspace before embedding local HTML.");
     }
-    if (!isLocalHtmlUri(value)) {
-      throw new Error("Select a local .html or .htm file.");
+    const localUri = toLocalHtmlUri(value);
+    if (!localUri) {
+      throw new Error("Enter a local .html or .htm file path or file URL.");
     }
-    const uri = vscode.Uri.parse(value);
+    const parsed = vscode.Uri.parse(localUri);
+    const uri =
+      value.startsWith("/") && this.document.uri.scheme === "vscode-remote"
+        ? parsed.with({
+            scheme: this.document.uri.scheme,
+            authority: this.document.uri.authority,
+          })
+        : parsed;
     if (
       uri.path.includes("\\") ||
       path.posix.normalize(uri.path) !== uri.path ||
@@ -764,38 +779,37 @@ export class ExcalidrawEditor {
     ) {
       throw new Error("The selected HTML path is not a file.");
     }
+    if (stat.size > MAX_LOCAL_HTML_BYTES) {
+      throw new Error("The HTML file is larger than 10 MB.");
+    }
     return uri;
   }
 
-  private async pickLocalHtml() {
-    if (this.isViewOnly()) {
-      return;
-    }
+  private async readLocalHtmlResource(
+    resolvedUrl: string,
+    htmlUri: vscode.Uri
+  ): Promise<Uint8Array | undefined> {
     try {
-      if (!vscode.workspace.isTrusted) {
-        throw new Error("Trust this workspace before embedding local HTML.");
+      const uri = vscode.Uri.parse(resolvedUrl);
+      if (
+        uri.scheme !== htmlUri.scheme ||
+        uri.authority !== htmlUri.authority ||
+        uri.path.includes("\\") ||
+        path.posix.normalize(uri.path) !== uri.path ||
+        !vscode.workspace.getWorkspaceFolder(uri)
+      ) {
+        return undefined;
       }
-      const selected = await vscode.window.showOpenDialog({
-        canSelectMany: false,
-        canSelectFolders: false,
-        filters: { "HTML files": ["html", "htm"] },
-        openLabel: "Embed HTML",
-        defaultUri: vscode.workspace.getWorkspaceFolder(this.document.uri)?.uri,
-      });
-      if (!selected?.[0]) {
-        return;
+      const stat = await vscode.workspace.fs.stat(uri);
+      if (
+        !(stat.type & vscode.FileType.File) ||
+        stat.type & vscode.FileType.SymbolicLink
+      ) {
+        return undefined;
       }
-      const uri = await this.resolveLocalHtml(selected[0].toString());
-      await this.webview.postMessage({
-        type: "embed-local-html-selected",
-        url: uri.toString(),
-      });
-    } catch (error) {
-      await vscode.window.showErrorMessage(
-        `Unable to embed local HTML: ${
-          error instanceof Error ? error.message : String(error)
-        }`
-      );
+      return await vscode.workspace.fs.readFile(uri);
+    } catch {
+      return undefined;
     }
   }
 

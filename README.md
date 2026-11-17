@@ -39,15 +39,19 @@ Shortcuts apply to the drawing canvas, not while typing in an inline code block.
 
 ### Embed local HTML
 
-Open a trusted workspace containing the HTML file, open a drawing, then click
-**HTML** above the canvas and choose a `.html` or `.htm` file inside a workspace
-folder. Double-click the frame to interact with it; hover for **Reload** and
+Open a trusted workspace containing the HTML file, then use the existing
+**Web Embed** tool to draw a frame. In its link field, enter an absolute path
+(for example `/Users/me/project/page.html`) or a `file:///` URL to a `.html` or
+`.htm` file inside a workspace folder. No separate HTML button is needed.
+Double-click the frame to interact with it; hover for **Reload** and
 **Open file**. Reload after editing the HTML.
 
 The drawing stores a reference to the file, not its contents, so moving the
 file or opening the drawing on another machine can break the embed. Local pages
-run in a sandbox without same-origin access, forms, or popups; some scripts,
-module imports, and other features may not work. The frame is an editor-only
+run in a sandbox without same-origin access, forms, or popups. Relative scripts,
+stylesheets, and images inside the workspace are inlined; ES module imports,
+`fetch` of relative files, and links to other local pages may not work. The
+frame is an editor-only
 preview and is not included in image exports or other Excalidraw clients.
 
 ### Edit Images

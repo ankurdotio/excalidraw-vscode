@@ -1,5 +1,5 @@
 import type { EmbedSettings } from "../../../../src/embedTypes";
-import { isLocalHtmlUri } from "../../../../src/localHtmlUri";
+import { isLocalHtmlUri, toLocalHtmlUri } from "../../../../src/localHtmlUri";
 
 const EXCALIDRAW_EMBED_DOMAINS = [
   "youtube.com",
@@ -51,8 +51,9 @@ export function isLoopbackUrl(value: string): boolean {
 
 export function getEmbedDisplayHost(value: string): string {
   try {
-    const url = new URL(value);
-    if (isLocalHtmlUri(value)) {
+    const localUri = toLocalHtmlUri(value);
+    const url = new URL(localUri ?? value);
+    if (localUri) {
       return decodeURIComponent(url.pathname.split("/").pop() || value);
     }
     return url.hostname || value;

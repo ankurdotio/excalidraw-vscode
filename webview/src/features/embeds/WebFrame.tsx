@@ -16,7 +16,7 @@ type WebFrameProps = {
   ) => void;
   status?: string;
 } & (
-  | { local: true; sourceUrl: string }
+  | { local: true; html: string; onReload: () => void }
   | { local?: false; onShowCard: () => void; showCardAction: boolean }
 );
 
@@ -28,7 +28,8 @@ export function WebFrame(props: WebFrameProps) {
       <iframe
         key={`${props.url}-${reloadId}`}
         className="studio-embed-frame__iframe"
-        src={props.url}
+        src={props.local ? undefined : props.url}
+        srcDoc={props.local ? props.html : undefined}
         title={props.title}
         scrolling="yes"
         sandbox={props.local ? "allow-scripts" : IFRAME_SANDBOX}
@@ -48,13 +49,18 @@ export function WebFrame(props: WebFrameProps) {
         <EmbedActionButton
           label="Reload"
           title="Reload embedded page"
-          onClick={() => setReloadId((current) => current + 1)}
+          onClick={() => {
+            setReloadId((current) => current + 1);
+            if (props.local) {
+              props.onReload();
+            }
+          }}
         />
         {props.local ? (
           <EmbedActionButton
             label="Open file"
             title="Open HTML file in VS Code"
-            onClick={() => props.onOpen("local-file", props.sourceUrl)}
+            onClick={() => props.onOpen("local-file", props.url)}
           />
         ) : (
           <>

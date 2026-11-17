@@ -231,7 +231,9 @@ Manual confirmation (pending):
    Press **F5**, choose **Launch extension (desktop)**, open
    [`examples/test.excalidraw`](../examples/test.excalidraw), then use **File >
    Save As** to save a disposable `examples/local-embed-test.excalidraw`.
-2. Click **HTML** above the canvas and select `examples/local-embed.html`.
+2. Select the existing **Web Embed** tool, draw a frame, and enter the absolute
+   path to `examples/local-embed.html` in its link field. Repeat with its
+   `file:///` URL. There should be no separate HTML button.
    Expected: a movable, resizable frame displays “Local HTML script works”.
 3. Double-click the frame, hover it, and click **Open file**. Expected: the
    HTML file opens in VS Code. Edit its heading, save it, return to the
@@ -242,6 +244,6 @@ Manual confirmation (pending):
 5. Rename `examples/local-embed.html` and reopen the drawing. Expected: the
    frame reports the missing file. Restore the filename, double-click the
    frame, and click **Retry**. Expected: the page loads again.
-6. Try selecting an HTML file outside every workspace folder. Expected: an
+6. Enter a path to an HTML file outside every workspace folder. Expected: an
    error explains that the file must be inside an open workspace folder.
    Existing web embeds should continue to work.

@@ -5,7 +5,7 @@ import {
   isLoopbackUrl,
   validateEmbeddable,
 } from "../src/features/embeds/url";
-import { isLocalHtmlUri } from "../../src/localHtmlUri";
+import { isLocalHtmlUri, toLocalHtmlUri } from "../../src/localHtmlUri";
 
 describe("validateEmbeddable", () => {
   it("allows web URLs when all domains are enabled", () => {
@@ -43,6 +43,8 @@ describe("validateEmbeddable", () => {
 
   it("accepts local HTML references for host-side workspace validation", () => {
     const settings = { allowAllDomains: false, allowedDomains: [] };
+    expect(validateEmbeddable("/workspace/my page.html", settings)).toBe(true);
+    expect(validateEmbeddable("C:\\workspace\\page.htm", settings)).toBe(true);
     expect(
       validateEmbeddable("file:///workspace/my%20page.html", settings)
     ).toBe(true);
@@ -76,6 +78,19 @@ describe("validateEmbeddable", () => {
   });
 
   describe("isLocalHtmlUri", () => {
+    it("converts absolute paths without treating filename characters as URL syntax", () => {
+      expect(toLocalHtmlUri("/workspace/my #1%.html")).toBe(
+        "file:///workspace/my%20%231%25.html"
+      );
+      expect(toLocalHtmlUri("C:\\workspace\\page.htm")).toBe(
+        "file:///C%3A/workspace/page.htm"
+      );
+      expect(toLocalHtmlUri("relative/page.html")).toBeUndefined();
+      expect(toLocalHtmlUri("//example.com/page.html")).toBeUndefined();
+      expect(toLocalHtmlUri("/workspace/../outside/page.html")).toBe(
+        "file:///workspace/../outside/page.html"
+      );
+    });
     it("only identifies supported local HTML file URIs", () => {
       expect(isLocalHtmlUri("file:///project/INDEX.HTML")).toBe(true);
       expect(
@@ -122,6 +137,7 @@ describe("getEmbedDisplayHost", () => {
     expect(getEmbedDisplayHost("file:///workspace/my%20page.html")).toBe(
       "my page.html"
     );
+    expect(getEmbedDisplayHost("/workspace/my page.html")).toBe("my page.html");
     expect(
       getEmbedDisplayHost("vscode-remote://ssh-remote+host/project/index.htm")
     ).toBe("index.htm");

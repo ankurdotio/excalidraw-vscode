@@ -1,13 +1,11 @@
 import { useCallback, useEffect, useState, useRef } from "react";
 import {
   CaptureUpdateAction,
-  convertToExcalidrawElements,
   Excalidraw,
   loadLibraryFromBlob,
   newElementWith,
   serializeLibraryAsJSON,
   THEME,
-  viewportCoordsToSceneCoords,
 } from "@excalidraw/excalidraw";
 
 import "@excalidraw/excalidraw/index.css";
@@ -38,7 +36,6 @@ import {
 } from "./features/embeds/url";
 import { useIconLibrary } from "./features/icons/useIconLibrary";
 import { useCodeBlocks } from "./features/code-blocks/useCodeBlocks";
-import { isLocalHtmlUri } from "../../src/localHtmlUri";
 
 function detectTheme() {
   switch (document.body.className) {
@@ -129,6 +126,9 @@ export default function App(props: {
   const [embedMapErrors, setEmbedMapErrors] = useState<Record<string, string>>(
     {}
   );
+  const [localEmbedHtml, setLocalEmbedHtml] = useState<
+    Record<string, string>
+  >({});
   const requestedEmbedChecks = useRef(new Set<string>());
   const requestedEmbedMaps = useRef(new Set<string>());
   const icons = useIconLibrary({
@@ -209,57 +209,24 @@ export default function App(props: {
             setEmbedChecks({});
             break;
           }
-          case "embed-local-html-selected": {
-            if (
-              props.viewModeEnabled ||
-              !excalidrawAPI ||
-              typeof message.url !== "string" ||
-              !isLocalHtmlUri(message.url)
-            ) {
-              throw new Error("Unable to insert the selected local HTML file.");
-            }
-            const state = excalidrawAPI.getAppState();
-            const center = viewportCoordsToSceneCoords(
-              {
-                clientX: state.offsetLeft + state.width / 2,
-                clientY: state.offsetTop + state.height / 2,
-              },
-              state
-            );
-            const [base] = convertToExcalidrawElements([
-              {
-                type: "rectangle",
-                x: center.x - 280,
-                y: center.y - 210,
-                width: 560,
-                height: 420,
-                strokeColor: "transparent",
-                backgroundColor: "transparent",
-              },
-            ]);
-            if (!base || base.type !== "rectangle") {
-              throw new Error("Unable to create the local HTML frame.");
-            }
-            excalidrawAPI.updateScene({
-              elements: [
-                ...excalidrawAPI.getSceneElementsIncludingDeleted(),
-                { ...base, type: "embeddable", link: message.url },
-              ],
-              captureUpdate: CaptureUpdateAction.IMMEDIATELY,
-            });
-            break;
-          }
           case "embed-check-result": {
             const result = message.result as EmbedCheckResult;
             setEmbedChecks((current) => ({ ...current, [result.url]: result }));
             break;
           }
           case "embed-url-result": {
-            if (message.mappedUrl) {
-              setMappedEmbedUrls((current) => ({
-                ...current,
-                [message.url]: message.mappedUrl,
-              }));
+            if (message.mappedUrl || typeof message.html === "string") {
+              if (typeof message.html === "string") {
+                setLocalEmbedHtml((current) => ({
+                  ...current,
+                  [message.url]: message.html,
+                }));
+              } else {
+                setMappedEmbedUrls((current) => ({
+                  ...current,
+                  [message.url]: message.mappedUrl,
+                }));
+              }
               setEmbedMapErrors((current) => {
                 const next = { ...current };
                 delete next[message.url];
@@ -397,6 +364,9 @@ export default function App(props: {
               mappedUrl={
                 element.link ? mappedEmbedUrls[element.link] : undefined
               }
+              localHtml={
+                element.link ? localEmbedHtml[element.link] : undefined
+              }
               mapError={element.link ? embedMapErrors[element.link] : undefined}
               viewOnly={props.viewModeEnabled}
               requestCheck={requestEmbedCheck}
@@ -410,18 +380,6 @@ export default function App(props: {
           <>
             {icons.trigger}
             {codeBlocks.trigger}
-            {!props.viewModeEnabled && (
-              <button
-                type="button"
-                className="studio-code-trigger"
-                title="Embed local HTML file"
-                onClick={() =>
-                  vscode.postMessage({ type: "embed-pick-local-html" })
-                }
-              >
-                HTML
-              </button>
-            )}
           </>
         )}
         onLinkOpen={(element, event) => {

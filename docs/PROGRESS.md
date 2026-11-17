@@ -13,7 +13,7 @@ is `ex+`; command and settings prefixes and the editor view type remain
 unchanged for compatibility.
 Manual confirmation of the rename is pending.
 
-Local HTML embeds: the HTML picker, trusted-workspace validation, isolated
+Local HTML embeds: the existing web-embed link field, trusted-workspace validation, isolated
 preview, and save/reopen behavior have automated checks; VS Code UI confirmation
 is pending.
 
